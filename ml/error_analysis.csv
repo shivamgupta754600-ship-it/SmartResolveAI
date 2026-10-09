@@ -1,0 +1,12 @@
+text,actual_category,predicted_category
+हमारे इलाके में पानी नहीं आ रहा है,water_supply,waste_management
+नेहरू कॉलोनी का सामुदायिक केंद्र पिछले चार दिनों से बंद है,other,education_services
+पटेल नगर में छात्रों को एक महीने से किताबें नहीं मिलीं,education_services,waste_management
+स्वास्थ्य केंद्र में कर्मचारियों की कमी है,healthcare_services,electricity
+स्वास्थ्य केंद्र के उपकरण काम नहीं कर रहे हैं,healthcare_services,education_services
+अशोक विहार का सामुदायिक केंद्र एक महीने से ज्यादा से बंद है,other,water_supply
+There is no lighting near the public park,streetlight,other
+अस्पताल के शौचालय की सफाई जरूरी है,healthcare_services,education_services
+कृपया हमारे क्षेत्र में पानी की व्यवस्था करें,water_supply,other
+मॉडल टाउन के पास नाला कई दिनों से कूड़े से जाम है,waste_management,water_supply
+कचरा वाहन कई दिनों से नहीं आया है,waste_management,water_supply

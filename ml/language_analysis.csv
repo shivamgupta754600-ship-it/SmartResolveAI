@@ -1,0 +1,289 @@
+text,actual_category,predicted_category,language,correct
+The hospital in Shastri Nagar refused treatment citing lack of beds,healthcare_services,healthcare_services,en,True
+लक्ष्मी नगर के पास कूड़े के ढेर से बदबू असहनीय है,waste_management,waste_management,hi,True
+राजपुरा रोड इलाके में वोल्टेज के उतार-चढ़ाव से कई घरेलू उपकरण खराब हो गए हैं,electricity,electricity,hi,True
+बाजार क्षेत्र में स्थानीय क्लिनिक बहुत दिनों से बंद होने के कारण मरीजों को दूर जाना पड़ता है,healthcare_services,healthcare_services,hi,True
+Medicines are not available at the government hospital in our village,healthcare_services,healthcare_services,en,True
+bazaar area mein nayi bani road pehle hi ukhadne lagi hai,road_infrastructure,road_infrastructure,hinglish,True
+शहर के बाहरी इलाके के स्कूल में कोई ठीक पुस्तकालय नहीं है,education_services,education_services,hi,True
+शहर के बाहरी इलाके के स्थानीय बाजार में विक्रेताओं का उचित नियमन नहीं है,other,other,hi,True
+हमारे इलाके में पानी नहीं आ रहा है,water_supply,waste_management,hi,False
+हमारी कॉलोनी के स्कूल में मिड-डे मील की गुणवत्ता बहुत खराब है,education_services,education_services,hi,True
+Nehru Colony ke school mein bathroom itni gandi hai ki bachhe use nahi karte,education_services,education_services,hinglish,True
+Streetlight pole damage ho gaya hai,streetlight,streetlight,hinglish,True
+Streetlight in Sector 12 flickers constantly and needs repair,streetlight,streetlight,en,True
+नई हाउसिंग सोसाइटी में एक महीने से कोई कूड़ा उठाने नहीं आया,waste_management,waste_management,hi,True
+पटेल नगर में सड़क निर्माण तीन दिनों से अधूरा पड़ा है,road_infrastructure,road_infrastructure,hi,True
+Water supply has been irregular for almost a week in Ashok Vihar,water_supply,water_supply,en,True
+बाजार क्षेत्र के स्कूल में विज्ञान विषयों के लिए योग्य शिक्षक नहीं हैं,education_services,education_services,hi,True
+Laxmi Nagar ke school mein koi functional library nahi hai,education_services,education_services,hinglish,True
+सरकारी कॉलोनी में बोरवेल एक हफ्ते से खराब पड़ा है,water_supply,water_supply,hi,True
+गांधी नगर के स्कूल में शिक्षक अक्सर अनुपस्थित रहते हैं,education_services,education_services,hi,True
+No electricity meter has been installed for new connections in our colony,electricity,electricity,en,True
+Government service query mein assistance chahiye,other,other,hinglish,True
+Model Town ke paas transformer kharab hone se pichhle char din se bijli nahi hai,electricity,electricity,hinglish,True
+Patel Nagar ke school mein science subjects ke liye qualified teachers nahi hain,education_services,education_services,hinglish,True
+पुराने शहर के इलाके में तूफान के बाद बिजली बहाल होने में एक महीने से ज्यादा लग गए,electricity,electricity,hi,True
+bazaar area ke students ki scholarship pichhle char din se pending hai,education_services,education_services,hinglish,True
+hamare gaon ke health center ki nurses overworked aur understaffed hain,healthcare_services,healthcare_services,hinglish,True
+hamari lane ki road par mara hua janwar pada hai aur hataya nahi gaya,waste_management,waste_management,hinglish,True
+The government school in the outskirts of town has been without a headmaster for a month,education_services,education_services,en,True
+Road in our village has not been repaired for the last four days,road_infrastructure,road_infrastructure,en,True
+ग्रीन पार्क के सरकारी अस्पताल में प्रतीक्षा समय एक महीने से ज्यादा से अधिक है,healthcare_services,healthcare_services,hi,True
+नेहरू कॉलोनी का सामुदायिक केंद्र पिछले चार दिनों से बंद है,other,education_services,hi,False
+shehar ke bahar wale area mein solar streetlight do mahino baad kharab ho gayi,streetlight,streetlight,hinglish,True
+The school building in our colony is in a dilapidated condition,education_services,education_services,en,True
+mandir ke paas wale block ke health center building ki condition theek nahi hai,healthcare_services,healthcare_services,hinglish,True
+Maternal healthcare facilities in the government colony are severely inadequate,healthcare_services,healthcare_services,en,True
+Green Park ki road teen din se repair nahi hui hai,road_infrastructure,road_infrastructure,hinglish,True
+Sector 9 ke community dustbin ek hafte se empty nahi kiye gaye,waste_management,waste_management,hinglish,True
+Area ke paas bridge repair chahiye,road_infrastructure,road_infrastructure,hinglish,True
+Gandhi Nagar mein khule electric wires safety hazard hain,electricity,electricity,hinglish,True
+There is a broken water pipe leaking on the main road in Laxmi Nagar,water_supply,water_supply,en,True
+गांधी नगर के सरकारी अस्पताल में प्रतीक्षा समय एक महीने से अधिक है,healthcare_services,healthcare_services,hi,True
+गांधी नगर के पास नई बनी सड़क पर कोई लाइट या साइनबोर्ड नहीं है,road_infrastructure,road_infrastructure,hi,True
+लक्ष्मी नगर में आवारा पशु घूमने से दुर्घटनाएं हो रही हैं,other,other,hi,True
+Patel Nagar mein nayi bani road pehle hi ukhadne lagi hai,road_infrastructure,road_infrastructure,hinglish,True
+Borewell in our street has stopped working for two weeks,water_supply,water_supply,en,True
+Please clean the garbage near the market,waste_management,waste_management,en,True
+Public toilets in our colony are unhygienic and poorly maintained,other,other,en,True
+hamari colony mein electricity complaint paanch din se resolve nahi hui hai,electricity,electricity,hinglish,True
+सेक्टर 12 में सड़क निर्माण बहुत दिनों से अधूरा पड़ा है,road_infrastructure,road_infrastructure,hi,True
+स्टेशन के पास की बस्ती में स्ट्रीट लाइट की वायरिंग खुली हुई है जो खतरनाक है,streetlight,streetlight,hi,True
+Model Town mein water supply bahut irregular hai,water_supply,water_supply,hinglish,True
+मंदिर के पास वाले ब्लॉक में बिजली की शिकायत पिछले चार दिनों से हल नहीं हुई है,electricity,electricity,hi,True
+Indira Nagar mein tuta hua streetlight pole footpath par pada hai,streetlight,streetlight,hinglish,True
+मॉडल टाउन में फेरीवालों के अतिक्रमण से फुटपाथ अवरुद्ध हो रहा है,other,other,hi,True
+शास्त्री नगर के पास कूड़े के ढेर से बदबू असहनीय है,waste_management,waste_management,hi,True
+Model Town mein naye ghar ko water connection nahi mila hai,water_supply,water_supply,hinglish,True
+hamari colony mein garbage truck das din se nahi aayi,waste_management,waste_management,hinglish,True
+नेहरू कॉलोनी की मुख्य सड़क पर बड़े-बड़े गड्ढे हैं,road_infrastructure,road_infrastructure,hi,True
+Dead animal lying on the street in the outskirts of town is not being removed,waste_management,waste_management,en,True
+पटेल नगर में छात्रों को एक महीने से किताबें नहीं मिलीं,education_services,waste_management,hi,False
+School mein learning material ki kami hai,education_services,education_services,hinglish,True
+Admission process at the school in the slum area near the station is being unnecessarily delayed,education_services,education_services,en,True
+सिविल लाइन्स के पास ट्रांसफार्मर खराब होने से बहुत दिनों से बिजली नहीं है,electricity,electricity,hi,True
+स्वास्थ्य केंद्र में कर्मचारियों की कमी है,healthcare_services,electricity,hi,False
+sarkari colony ke school mein drinking water ki facility nahi hai,education_services,education_services,hinglish,True
+Gandhi Nagar ke school ki building dilapidated condition mein hai,education_services,education_services,hinglish,True
+Broken streetlight pole in Indira Nagar is lying on the footpath,streetlight,streetlight,en,True
+शहर के बाहरी इलाके में बिजली के सब-स्टेशन को तुरंत मरम्मत की जरूरत है,electricity,electricity,hi,True
+पटेल नगर में नई बनी सड़क पहले ही उखड़ने लगी है,road_infrastructure,road_infrastructure,hi,True
+The water tanker has not come to Sector 9 for over a month,water_supply,water_supply,en,True
+Road construction in the government colony has been incomplete for two months,road_infrastructure,road_infrastructure,en,True
+Potholes on the road in the government colony have caused several accidents,road_infrastructure,road_infrastructure,en,True
+Ambulance did not arrive on time during an emergency in the block near the temple,healthcare_services,healthcare_services,en,True
+Nehru Colony mein bijli department ko complaint karne ke baad bhi koi response nahi mila,electricity,electricity,hinglish,True
+स्वास्थ्य केंद्र के उपकरण काम नहीं कर रहे हैं,healthcare_services,education_services,hi,False
+The school in Green Park lacks qualified teachers for science subjects,education_services,education_services,en,True
+hamari gali ke hospital ne beds ki kami bata kar treatment se mana kar diya,healthcare_services,healthcare_services,hinglish,True
+ग्रीन पार्क का फुटपाथ टूटा हुआ है और उपयोग करने लायक नहीं है,road_infrastructure,road_infrastructure,hi,True
+Waterlogging on the road in the market area lasts for the last four days after rain,road_infrastructure,road_infrastructure,en,True
+Streetlights in our colony have not worked for over a month,streetlight,streetlight,en,True
+हमारी कॉलोनी की सार्वजनिक लाइब्रेरी पंद्रह दिनों से ज्यादा से बंद है,other,other,hi,True
+निर्माण सामग्री सड़क को रोक रही है,road_infrastructure,road_infrastructure,hi,True
+अशोक विहार का सामुदायिक केंद्र एक महीने से ज्यादा से बंद है,other,water_supply,hi,False
+हमारी लेन के स्थानीय बाजार में विक्रेताओं का उचित नियमन नहीं है,other,other,hi,True
+The water pressure is very low in our area,water_supply,water_supply,en,True
+bazaar area mein road construction lagbhag ek hafte se incomplete pada hai,road_infrastructure,road_infrastructure,hinglish,True
+Rain ke baad streetlight band hai,streetlight,streetlight,hinglish,True
+इंदिरा नगर में पिछले तीन दिनों से नल में पानी नहीं आया,water_supply,water_supply,hi,True
+hamari gali ke health center ki nurses overworked aur understaffed hain,healthcare_services,healthcare_services,hinglish,True
+मंदिर के पास वाले ब्लॉक के अस्पताल में कोई कार्यरत जांच उपकरण नहीं है,healthcare_services,healthcare_services,hi,True
+No one has come to collect waste in Nehru Colony for over a month,waste_management,waste_management,en,True
+Nehru Colony ke paas wale bridge mein cracks aa gaye hain,road_infrastructure,road_infrastructure,hinglish,True
+Mohalle mein paani ki bahut shortage hai,water_supply,water_supply,hinglish,True
+सिविल लाइन्स में सोलर स्ट्रीट लाइट लगभग एक हफ्ते बाद खराब हो गई,streetlight,streetlight,hi,True
+Stray cattle are scattering garbage in Sector 12 due to open bins,waste_management,waste_management,en,True
+शास्त्री नगर के स्वास्थ्य केंद्र की नर्सें अत्यधिक काम के बोझ से दबी हैं,healthcare_services,healthcare_services,hi,True
+bazaar area mein streetlight ka timer kharab hai isliye light band rehti hai,streetlight,streetlight,hinglish,True
+The divider on the road in the old city area is broken and dangerous,road_infrastructure,road_infrastructure,en,True
+The solar streetlight in Gandhi Nagar stopped working after a month,streetlight,streetlight,en,True
+वार्ड 5 की सार्वजनिक लाइब्रेरी एक महीने से बंद है,other,other,hi,True
+The drainage near Model Town is clogged with waste for three days,waste_management,waste_management,en,True
+hamari lane mein aaya electricity bill normal se bahut zyada hai,electricity,electricity,hinglish,True
+Stray cattle roaming in Green Park are causing accidents,other,other,en,True
+There is no lighting near the public park,streetlight,other,en,False
+बाजार क्षेत्र के स्कूल की इमारत जर्जर हालत में है,education_services,education_services,hi,True
+सेक्टर 12 में बिजली हर कुछ घंटों में बार-बार जाती है,electricity,electricity,hi,True
+Sector 12 mein streetlight ki wiring khuli hui hai jo dangerous hai,streetlight,streetlight,hinglish,True
+अशोक विहार में खुले में कूड़ा जलाया जा रहा है जिससे प्रदूषण हो रहा है,waste_management,waste_management,hi,True
+इंदिरा नगर में मिला बिजली का बिल सामान्य से बहुत ज्यादा है,electricity,electricity,hi,True
+Sector 9 ke paas medical waste illegally dump kiya ja raha hai,waste_management,waste_management,hinglish,True
+Gandhi Nagar mein maternal healthcare facilities bahut inadequate hain,healthcare_services,healthcare_services,hinglish,True
+hamari lane ke log lagbhag ek hafte se paani ki shortage ki wajah se paani kharidne ko majboor hain,water_supply,water_supply,hinglish,True
+New streetlight poles installed in Patel Nagar were never connected,streetlight,streetlight,en,True
+Teachers are frequently absent from the school in the block near the temple,education_services,education_services,en,True
+Illegal parking on the road in the old city area is causing traffic jams,other,other,en,True
+हमारी कॉलोनी के स्कूल में पीने के पानी की सुविधा नहीं है,education_services,education_services,hi,True
+shehar ke bahar wale area mein hawkers ke encroachment se footpath block ho raha hai,other,other,hinglish,True
+बाजार क्षेत्र के स्कूल में चारदीवारी नहीं है जिससे सुरक्षा को खतरा है,education_services,education_services,hi,True
+Sector 9 ke hospital mein functioning diagnostic equipment nahi hai,healthcare_services,healthcare_services,hinglish,True
+ग्रीन पार्क के स्कूल की इमारत जर्जर हालत में है,education_services,education_services,hi,True
+Green Park mein raat ko broken lights ki wajah se pura andhera rehta hai,streetlight,streetlight,hinglish,True
+Nehru Colony mein illegal connections ki wajah se baar baar outage ho raha hai,electricity,electricity,hinglish,True
+Civil Lines ke school mein koi functional library nahi hai,education_services,education_services,hinglish,True
+Water pressure is extremely low in our street,water_supply,water_supply,en,True
+Encroachment by hawkers in our lane is blocking the footpath,other,other,en,True
+Rajpura Road wale area mein public bench aur playground equipment tuta hua hai,other,other,hinglish,True
+Garbage has not been collected in Sector 9 for two months,waste_management,waste_management,en,True
+वार्ड 5 के पास पानी की पाइपलाइन फटी है और दो हफ्तों से ठीक नहीं हुई,water_supply,water_supply,hi,True
+The newly laid road in our village is already crumbling,road_infrastructure,road_infrastructure,en,True
+Model Town mein streetlight lagatar flicker karti hai aur repair chahiye,streetlight,streetlight,hinglish,True
+अस्पताल के शौचालय की सफाई जरूरी है,healthcare_services,education_services,hi,False
+सेक्टर 12 में तूफान के बाद बिजली बहाल होने में पंद्रह दिनों से ज्यादा लग गए,electricity,electricity,hi,True
+Medical waste is being dumped illegally near our village,waste_management,waste_management,en,True
+Encroachment by hawkers in Ashok Vihar is blocking the footpath,other,other,en,True
+शहर के बाहरी इलाके में दस दिनों से कूड़ा नहीं उठाया गया है,waste_management,waste_management,hi,True
+hamari gali mein swachhta abhiyan ke bawajood safai nahi ho rahi,waste_management,waste_management,hinglish,True
+hamari lane mein plastic waste ka dher ek mahine se jama hai,waste_management,waste_management,hinglish,True
+Sector 9 ke public toilets unhygienic aur poorly maintained hain,other,other,hinglish,True
+मंदिर के पास वाले ब्लॉक के लोग दो महीनों से पानी की कमी के कारण पानी खरीदने को मजबूर हैं,water_supply,water_supply,hi,True
+Hospital in Green Park has been out of basic medical supplies for the last four days,healthcare_services,healthcare_services,en,True
+Patel Nagar ke park ke paas wali streetlight kaam nahi kar rahi,streetlight,streetlight,hinglish,True
+स्टेशन के पास की बस्ती के स्कूल में शिक्षक अक्सर अनुपस्थित रहते हैं,education_services,education_services,hi,True
+Maternal healthcare facilities in Laxmi Nagar are severely inadequate,healthcare_services,healthcare_services,en,True
+School mein drinking water nahi hai,education_services,education_services,hinglish,True
+Shastri Nagar mein ek hafte se koi kachra uthane nahi aaya,waste_management,waste_management,hinglish,True
+hamari colony mein vaccination drive bahut dino se delay hai,healthcare_services,healthcare_services,hinglish,True
+Community dustbins in our colony have not been emptied for a week,waste_management,waste_management,en,True
+Electricity has been unavailable since morning,electricity,electricity,en,True
+सिविल लाइन्स में पिछले पांच दिनों से नल में पानी नहीं आया,water_supply,water_supply,hi,True
+The footpath in our lane is damaged and unusable,road_infrastructure,road_infrastructure,en,True
+mandir ke paas wale block mein electrician bulane ke baad bhi light theek nahi hui,streetlight,streetlight,hinglish,True
+सेक्टर 9 के पास मेडिकल कचरा अवैध रूप से फेंका जा रहा है,waste_management,waste_management,hi,True
+हमारी कॉलोनी के सार्वजनिक शौचालय अस्वच्छ और खराब हालत में हैं,other,other,hi,True
+वार्ड 5 में तूफान के बाद बिजली बहाल होने में बहुत दिनों लग गए,electricity,electricity,hi,True
+Gandhi Nagar ka community center kai dino se band hai,other,other,hinglish,True
+Ashok Vihar mein streetlight lagatar flicker karti hai aur repair chahiye,streetlight,streetlight,hinglish,True
+bazaar area mein roshni na hone se raat mein mahilaon ko unsafe feel hota hai,streetlight,streetlight,hinglish,True
+मंदिर के पास वाले ब्लॉक में पानी का दबाव बहुत कम है,water_supply,water_supply,hi,True
+Green Park ke paas dustbin overflow ho rahe hain,waste_management,waste_management,hinglish,True
+The government school in our village lacks proper classrooms,education_services,education_services,en,True
+Waiting time at the government hospital in the block near the temple exceeds a month,healthcare_services,healthcare_services,en,True
+Shastri Nagar mein proper drainage na hone se road par paani bhar jaata hai,road_infrastructure,road_infrastructure,hinglish,True
+बाजार क्षेत्र में पानी की सप्लाई बहुत अनियमित है,water_supply,water_supply,hi,True
+नई हाउसिंग सोसाइटी की सड़क के गड्ढों के कारण कई दुर्घटनाएं हो चुकी हैं,road_infrastructure,road_infrastructure,hi,True
+मंदिर के पास वाले ब्लॉक में अवैध बिजली कनेक्शन के कारण बार-बार कटौती हो रही है,electricity,electricity,hi,True
+Medicines are not available at the government hospital in Sector 12,healthcare_services,healthcare_services,en,True
+purane shehar wale area mein kai streetlights kaam nahi kar rahi hain,streetlight,streetlight,hinglish,True
+कृपया हमारे क्षेत्र में पानी की व्यवस्था करें,water_supply,other,hi,False
+Power supply in the outskirts of town keeps tripping every few hours,electricity,electricity,en,True
+सेक्टर 12 के स्कूल की इमारत जर्जर हालत में है,education_services,education_services,hi,True
+हमारे गांव में नई बनी सड़क पहले ही उखड़ने लगी है,road_infrastructure,road_infrastructure,hi,True
+Borewell in Nehru Colony has stopped working for almost a week,water_supply,water_supply,en,True
+Streetside electric cables in the old city area are hanging low and unsafe,electricity,electricity,en,True
+Garbage bins near the new housing society are overflowing,waste_management,waste_management,en,True
+Waiting time at the government hospital in the slum area near the station exceeds two weeks,healthcare_services,healthcare_services,en,True
+Water pressure is extremely low in our colony,water_supply,water_supply,en,True
+Please repair the light outside our house,streetlight,streetlight,en,True
+Laxmi Nagar mein streetlight ki wiring khuli hui hai jo dangerous hai,streetlight,streetlight,hinglish,True
+Maternal healthcare facilities in our colony are severely inadequate,healthcare_services,healthcare_services,en,True
+Garbage vehicle hamare area mein nahi aaya,waste_management,waste_management,hinglish,True
+गांधी नगर में सड़क किनारे बिजली के तार नीचे लटक रहे हैं जो असुरक्षित है,electricity,electricity,hi,True
+hamari gali ki road par illegal parking se traffic jam ho raha hai,other,other,hinglish,True
+Load shedding in the new housing society lasts for several days every day,electricity,electricity,en,True
+Exposed electric wires in the old city area are a safety hazard,electricity,electricity,en,True
+I want to submit a general civic complaint,other,other,en,True
+shehar ke bahar wale area mein paani aane ka time bilkul fix nahi hai,water_supply,water_supply,hinglish,True
+I need help finding the correct grievance office,other,other,en,True
+मॉडल टाउन के अस्पताल में कोई कार्यरत जांच उपकरण नहीं है,healthcare_services,healthcare_services,hi,True
+station ke paas wali basti ke paas water pipeline fat gayi hai aur do hafton se theek nahi hui,water_supply,water_supply,hinglish,True
+लक्ष्मी नगर का सार्वजनिक पार्क ठीक से रखरखाव नहीं है,other,other,hi,True
+Vaccination drive in the slum area near the station has been delayed for many days,healthcare_services,healthcare_services,en,True
+हमारी कॉलोनी में लगभग एक हफ्ते से स्ट्रीट लाइटें काम नहीं कर रहीं,streetlight,streetlight,hi,True
+The public library in Indira Nagar has been closed for more than fifteen days,other,other,en,True
+सरकारी कॉलोनी में रोशनी न होने से रात में महिलाओं को असुरक्षित महसूस होता है,streetlight,streetlight,hi,True
+The footpath in the government colony is damaged and unusable,road_infrastructure,road_infrastructure,en,True
+Dead animal lying on the street in Gandhi Nagar is not being removed,waste_management,waste_management,en,True
+नेहरू कॉलोनी में स्ट्रीट लाइट पांच दिनों से बंद है,streetlight,streetlight,hi,True
+पुराने शहर के इलाके के पास नई बनी सड़क पर कोई लाइट या साइनबोर्ड नहीं है,road_infrastructure,road_infrastructure,hi,True
+हमारी गली की सड़क की मरम्मत जरूरी है,road_infrastructure,road_infrastructure,hi,True
+सेक्टर 9 में खुले बिजली के तार सुरक्षा के लिए खतरा हैं,electricity,electricity,hi,True
+Ward 5 ke local market mein vendors ka proper regulation nahi hai,other,other,hinglish,True
+अशोक विहार में मुख्य सड़क पर पानी की पाइपलाइन लीक हो रही है,water_supply,water_supply,hi,True
+शहर के बाहरी इलाके में नए लगे स्ट्रीट लाइट के खंभे कभी कनेक्ट नहीं हुए,streetlight,streetlight,hi,True
+Indira Nagar mein voltage fluctuation se kayi ghar ke appliances kharab ho gaye hain,electricity,electricity,hinglish,True
+Kai din se paani ki dikkat hai,water_supply,water_supply,hinglish,True
+Public bench and playground equipment in the old city area are broken,other,other,en,True
+Foul smell from garbage dump near our colony is unbearable,waste_management,waste_management,en,True
+Speed breakers in the market area are unmarked and causing accidents,road_infrastructure,road_infrastructure,en,True
+सिविल लाइन्स में रोशनी न होने से रात में महिलाओं को असुरक्षित महसूस होता है,streetlight,streetlight,hi,True
+हमारी गली के स्थानीय बाजार में विक्रेताओं का उचित नियमन नहीं है,other,other,hi,True
+नेहरू कॉलोनी में स्ट्रीट लाइट की शिकायत पंद्रह दिनों से ज्यादा से लंबित है,streetlight,streetlight,hi,True
+बाजार क्षेत्र के सरकारी अस्पताल में दवाइयां उपलब्ध नहीं हैं,healthcare_services,healthcare_services,hi,True
+Indira Nagar mein borewell lagbhag ek hafte se kharab pada hai,water_supply,water_supply,hinglish,True
+There is no proper drainage and the road in the slum area near the station gets flooded,road_infrastructure,road_infrastructure,en,True
+The school boundary wall is broken,education_services,education_services,en,True
+The streetlight near the park in the block near the temple is not working,streetlight,streetlight,en,True
+Nehru Colony ke government hospital mein waiting time kai dino se zyada hai,healthcare_services,healthcare_services,hinglish,True
+Civil Lines mein sewage water drinking water supply mein mix ho raha hai,water_supply,water_supply,hinglish,True
+Patel Nagar ka community center bahut dino se band hai,other,other,hinglish,True
+शहर के बाहरी इलाके में तूफान के बाद बिजली बहाल होने में एक महीने लग गए,electricity,electricity,hi,True
+bazaar area ke school mein boundary wall nahi hai jisse safety risk hai,education_services,education_services,hinglish,True
+Vaccination drive in Model Town has been delayed for three days,healthcare_services,healthcare_services,en,True
+Illegal encroachment on public land in Indira Nagar has continued for more than fifteen days,other,other,en,True
+हमारी लेन में स्पीड ब्रेकर बिना निशान के हैं जिससे दुर्घटनाएं हो रही हैं,road_infrastructure,road_infrastructure,hi,True
+station ke paas wali basti mein speed breakers bina marking ke hain jisse accidents ho rahe hain,road_infrastructure,road_infrastructure,hinglish,True
+हमारे गांव में पानी आने का समय बिल्कुल तय नहीं है,water_supply,water_supply,hi,True
+Model Town ke local market mein vendors ka proper regulation nahi hai,other,other,hinglish,True
+Mera electricity connection kaam nahi kar raha,electricity,electricity,hinglish,True
+Sector 9 mein do mahino se power cut hai,electricity,electricity,hinglish,True
+हमारी गली में खुले में कूड़ा जलाया जा रहा है जिससे प्रदूषण हो रहा है,waste_management,waste_management,hi,True
+Model Town mein har din ek mahine tak load shedding hoti hai,electricity,electricity,hinglish,True
+शहर के बाहरी इलाके में पीने का पानी एक महीने से ज्यादा से दूषित आ रहा है,water_supply,water_supply,hi,True
+Waterlogging on the road in Ward 5 lasts for several days after rain,road_infrastructure,road_infrastructure,en,True
+The road connecting Laxmi Nagar to the highway is in terrible condition,road_infrastructure,road_infrastructure,en,True
+Hospital toilet ki cleaning chahiye,healthcare_services,healthcare_services,hinglish,True
+Rain ke baad road par paani bhar jata hai,road_infrastructure,road_infrastructure,hinglish,True
+Potholes on the road in Gandhi Nagar have caused several accidents,road_infrastructure,road_infrastructure,en,True
+Hamare area mein paani nahi aa raha hai,water_supply,water_supply,hinglish,True
+Public toilets in our lane are unhygienic and poorly maintained,other,other,en,True
+हमारी कॉलोनी में पानी की सप्लाई अनियमित है,water_supply,water_supply,hi,True
+purane shehar wale area mein electricity complaint ek mahine se zyada se resolve nahi hui hai,electricity,electricity,hinglish,True
+Hamari colony mein paani irregular aata hai,water_supply,water_supply,hinglish,True
+Nurses at the health center in Sector 12 are overworked and understaffed,healthcare_services,healthcare_services,en,True
+Open dumping of garbage is happening near Patel Nagar,waste_management,waste_management,en,True
+The streetlight in Model Town has been off for ten days,streetlight,streetlight,en,True
+Green Park ke school mein admission process bina wajah delay ho raha hai,education_services,education_services,hinglish,True
+The water pipeline burst near our street and has not been repaired for many days,water_supply,water_supply,en,True
+अशोक विहार के पास कूड़े के ढेर से बदबू असहनीय है,waste_management,waste_management,hi,True
+Admission process at the school in Patel Nagar is being unnecessarily delayed,education_services,education_services,en,True
+Indira Nagar mein bijli har kuch ghanton mein trip ho jaati hai,electricity,electricity,hinglish,True
+गांधी नगर का सार्वजनिक पार्क ठीक से रखरखाव नहीं है,other,other,hi,True
+Ashok Vihar ke school ki classrooms mein furniture tuta hua hai,education_services,education_services,hinglish,True
+Water pressure is extremely low in Civil Lines,water_supply,water_supply,en,True
+Sector 12 ki road par construction ka malba ek mahine se pada hua hai,road_infrastructure,road_infrastructure,hinglish,True
+Green Park mein roadside electric cables neeche latak rahe hain jo unsafe hai,electricity,electricity,hinglish,True
+bazaar area mein electrician bulane ke baad bhi light theek nahi hui,streetlight,streetlight,hinglish,True
+हमारी लेन में खुले बिजली के तार सुरक्षा के लिए खतरा हैं,electricity,electricity,hi,True
+bazaar area mein ek mahine se zyada se streetlights kaam nahi kar rahin,streetlight,streetlight,hinglish,True
+Garbage has not been collected in Green Park for many days,waste_management,waste_management,en,True
+bazaar area mein speed breakers bina marking ke hain jisse accidents ho rahe hain,road_infrastructure,road_infrastructure,hinglish,True
+मॉडल टाउन के पास नाला कई दिनों से कूड़े से जाम है,waste_management,water_supply,hi,False
+Teachers are frequently absent from the school in our colony,education_services,education_services,en,True
+Overhead water tank in Ashok Vihar has been leaking for a week,water_supply,water_supply,en,True
+नल में गंदा पानी आ रहा है,water_supply,water_supply,hi,True
+Public toilets in the block near the temple are unhygienic and poorly maintained,other,other,en,True
+Responsible department ki information chahiye,other,other,hinglish,True
+Shastri Nagar mein tuta hua streetlight pole footpath par pada hai,streetlight,streetlight,hinglish,True
+Model Town mein vaccination drive teen din se delay hai,healthcare_services,healthcare_services,hinglish,True
+Women feel unsafe walking through our village at night due to no lighting,streetlight,streetlight,en,True
+अशोक विहार में बिजली के सब-स्टेशन को तुरंत मरम्मत की जरूरत है,electricity,electricity,hi,True
+कचरा वाहन कई दिनों से नहीं आया है,waste_management,water_supply,hi,False
+पुराने शहर के इलाके के पास नाला दो हफ्तों से कूड़े से भरा हुआ है,waste_management,waste_management,hi,True
+The public health center lacks medicines,healthcare_services,healthcare_services,en,True
+पटेल नगर के स्कूल में लड़कियों के लिए शौचालय नहीं हैं,education_services,education_services,hi,True
+Complaint ke liye department identify nahi kar pa raha,other,other,hinglish,True
+station ke paas wali basti ke government school mein teen din se headmaster nahi hai,education_services,education_services,hinglish,True
+Women feel unsafe walking through Indira Nagar at night due to no lighting,streetlight,streetlight,en,True
+The school does not have enough teachers,education_services,education_services,en,True
+बिजली का खंभा खतरनाक तरीके से झुक गया है,electricity,electricity,hi,True
+Vaccination drive in the outskirts of town has been delayed for five days,healthcare_services,healthcare_services,en,True
+Laxmi Nagar mein khule mein kachra jalaya ja raha hai jisse pollution ho raha hai,waste_management,waste_management,hinglish,True
+Ashok Vihar ke health center mein checkup ke liye female doctor nahi hai,healthcare_services,healthcare_services,hinglish,True
+सेक्टर 12 के स्कूल में कोई ठीक पुस्तकालय नहीं है,education_services,education_services,hi,True
+hamari colony mein raat ko loudspeaker use hota hai jisse disturbance hoti hai,other,other,hinglish,True
+बाजार क्षेत्र में मिला बिजली का बिल सामान्य से बहुत ज्यादा है,electricity,electricity,hi,True
+स्कूल के बाहर कचरा जमा है,waste_management,waste_management,hi,True
+शहर के बाहरी इलाके की सड़क पर मरा हुआ जानवर पड़ा है और हटाया नहीं गया,waste_management,waste_management,hi,True
