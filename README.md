@@ -77,7 +77,7 @@ These results are from the current dataset and evaluation setup; they do not gua
 ### 1. Clone the repository
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/shivamgupta754600-ship-it/SmartResolveAI.git
 cd SmartResolveAI
 ```
 
