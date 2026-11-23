@@ -11,8 +11,9 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     UserLoginRequest,
     UserRegisterRequest,
+    UserUpdateProfileRequest,
 )
-from app.services.auth import login_user, refresh_access_token, register_user
+from app.services.auth import login_user, refresh_access_token, register_user, update_profile
 
 
 def handle_register(request: UserRegisterRequest) -> dict:
@@ -22,6 +23,7 @@ def handle_register(request: UserRegisterRequest) -> dict:
             email=str(request.email),
             password=request.password,
             full_name=request.full_name,
+            phone=request.phone,
         )
     except ValueError as error:
         raise HTTPException(
@@ -64,4 +66,25 @@ def handle_refresh(request: RefreshTokenRequest) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(error),
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def handle_update_profile(user_id: int, request: UserUpdateProfileRequest) -> dict:
+    try:
+        return update_profile(
+            user_id,
+            full_name=request.full_name,
+            phone=request.phone,
+            address=request.address,
+            city=request.city,
+            state=request.state,
+            pincode=request.pincode,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
+    except Exception as error:
+        print("Profile update error:", error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Profile update failed.",
         )

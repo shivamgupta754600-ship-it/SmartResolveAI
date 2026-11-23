@@ -5,9 +5,15 @@ Raw MySQL CRUD for the `prediction_history` table.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
 from app.database import get_database_connection
+
+
+def _make_ticket(row_id: int) -> str:
+    year = datetime.now().year
+    return f"GRV-{year}-{row_id:06d}"
 
 
 def save_prediction(
@@ -16,9 +22,10 @@ def save_prediction(
     confidence: float,
     needs_human_review: bool,
     user_id: Optional[int] = None,
-) -> int:
+) -> dict:
     """
-    Insert a prediction record and return the new row id.
+    Insert a prediction record, generate a ticket number, and return
+    {'id': int, 'ticket_number': str}.
     """
     connection = None
     cursor = None
@@ -30,23 +37,24 @@ def save_prediction(
 
         cursor = connection.cursor()
 
-        query = """
-            INSERT INTO prediction_history (
-                user_id,
-                grievance_text,
-                predicted_category,
-                confidence,
-                needs_human_review
-            )
-            VALUES (%s, %s, %s, %s, %s)
-        """
-
         cursor.execute(
-            query,
+            """
+            INSERT INTO prediction_history (
+                user_id, grievance_text, predicted_category,
+                confidence, needs_human_review
+            ) VALUES (%s, %s, %s, %s, %s)
+            """,
             (user_id, grievance_text, predicted_category, confidence, needs_human_review),
         )
+        row_id = cursor.lastrowid
+        ticket = _make_ticket(row_id)
+
+        cursor.execute(
+            "UPDATE prediction_history SET ticket_number = %s WHERE id = %s",
+            (ticket, row_id),
+        )
         connection.commit()
-        return cursor.lastrowid
+        return {"id": row_id, "ticket_number": ticket}
 
     except Exception as error:
         if connection is not None and connection.is_connected():
@@ -69,7 +77,7 @@ def get_predictions_by_user(user_id: int, limit: int = 20) -> list:
         cursor = connection.cursor(dictionary=True)
         cursor.execute(
             """
-            SELECT id, grievance_text, predicted_category, confidence,
+            SELECT id, ticket_number, grievance_text, predicted_category, confidence,
                    needs_human_review, review_status, created_at
             FROM   prediction_history
             WHERE  user_id = %s
@@ -97,9 +105,10 @@ def get_predictions_needing_review(limit: int = 100) -> list:
         cursor = connection.cursor(dictionary=True)
         cursor.execute(
             """
-            SELECT ph.id, ph.grievance_text, ph.predicted_category,
+            SELECT ph.id, ph.ticket_number, ph.grievance_text, ph.predicted_category,
                    ph.confidence, ph.review_status, ph.created_at,
-                   u.username AS submitted_by
+                   u.username AS submitted_by, u.full_name, u.phone,
+                   u.address, u.city, u.state, u.pincode
             FROM   prediction_history ph
             LEFT   JOIN users u ON ph.user_id = u.id
             WHERE  ph.needs_human_review = TRUE
@@ -127,9 +136,11 @@ def get_all_predictions(limit: int = 200) -> list:
         cursor = connection.cursor(dictionary=True)
         cursor.execute(
             """
-            SELECT ph.id, ph.grievance_text, ph.predicted_category,
+            SELECT ph.id, ph.ticket_number, ph.grievance_text, ph.predicted_category,
                    ph.confidence, ph.needs_human_review, ph.review_status,
-                   ph.created_at, u.username AS submitted_by
+                   ph.created_at,
+                   u.username AS submitted_by, u.full_name, u.phone,
+                   u.address, u.city, u.state, u.pincode
             FROM   prediction_history ph
             LEFT   JOIN users u ON ph.user_id = u.id
             ORDER  BY ph.created_at DESC

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, User, Lock, Mail, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff, User, Lock, Mail, Phone, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { api, session } from '../api/client'
 import { useToast } from '../components/Toast'
@@ -182,7 +182,7 @@ function LoginForm({ login, navigate, showToast }) {
 
 /* ── REGISTER FORM ──────────────────────────────────────────────── */
 function RegisterForm({ setTab, showToast }) {
-  const [form, setFormState] = useState({ fullName: '', username: '', email: '', password: '' })
+  const [form, setFormState] = useState({ fullName: '', username: '', email: '', password: '', phone: '' })
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
@@ -200,6 +200,8 @@ function RegisterForm({ setTab, showToast }) {
     else if (form.password.length < 8) errs.password = 'At least 8 characters.'
     else if (!/[A-Z]/.test(form.password)) errs.password = 'Include at least one uppercase letter.'
     else if (!/[0-9]/.test(form.password)) errs.password = 'Include at least one number.'
+    if (form.phone.trim() && !/^\d{10,15}$/.test(form.phone.replace(/[\s\-\+()]/g, '')))
+      errs.phone = 'Enter a valid 10-digit mobile number.'
     setFE(errs)
     return Object.keys(errs).length === 0
   }
@@ -216,6 +218,7 @@ function RegisterForm({ setTab, showToast }) {
         email    : form.email.trim(),
         password : form.password,
         full_name: form.fullName.trim(),
+        phone    : form.phone.trim() || undefined,
       })
       showToast('Account created! Please sign in.', 'success')
       setTab('login')
@@ -254,6 +257,11 @@ function RegisterForm({ setTab, showToast }) {
           placeholder="ramesh@example.com" value={form.email} onChange={set('email')} autoComplete="email" />
       </Field>
 
+      <Field label="Mobile Number (recommended)" icon={<Phone size={16} className="text-gray-400"/>} error={fieldErrors.phone}>
+        <input className={`input pl-10 ${fieldErrors.phone ? 'error':''}`} type="tel"
+          placeholder="9876543210" value={form.phone} onChange={set('phone')} autoComplete="tel" />
+      </Field>
+
       <Field label="Password *" icon={<Lock size={16} className="text-gray-400"/>}
         error={fieldErrors.password}
         trailing={
@@ -267,6 +275,10 @@ function RegisterForm({ setTab, showToast }) {
           type={showPwd ? 'text' : 'password'} placeholder="Min 8 chars, 1 uppercase, 1 number"
           value={form.password} onChange={set('password')} autoComplete="new-password" />
       </Field>
+
+      <p className="text-xs text-gray-400 leading-relaxed">
+        📍 You can add your address after registration so the department can visit your location.
+      </p>
 
       <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-base mt-1">
         {loading

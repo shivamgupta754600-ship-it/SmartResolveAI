@@ -12,6 +12,7 @@ from app.controllers.auth_controller import (
     handle_login,
     handle_refresh,
     handle_register,
+    handle_update_profile,
 )
 from app.core.dependencies import get_current_user
 from app.middleware.rate_limiter import limiter
@@ -21,6 +22,7 @@ from app.schemas.auth import (
     UserLoginRequest,
     UserPublicResponse,
     UserRegisterRequest,
+    UserUpdateProfileRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -79,10 +81,45 @@ def refresh(body: RefreshTokenRequest):
 @router.get("/me", response_model=UserPublicResponse)
 def me(current_user: dict = Depends(get_current_user)):
     """Return the authenticated user's public profile."""
+    has_address = bool(current_user.get("city") or current_user.get("address"))
+    has_phone = bool(current_user.get("phone"))
     return {
         "id": current_user["id"],
         "username": current_user["username"],
         "email": current_user["email"],
         "full_name": current_user.get("full_name") or "",
         "is_admin": bool(current_user.get("is_admin", False)),
+        "phone": current_user.get("phone"),
+        "address": current_user.get("address"),
+        "city": current_user.get("city"),
+        "state": current_user.get("state"),
+        "pincode": current_user.get("pincode"),
+        "profile_complete": has_address and has_phone,
+    }
+
+
+# ------------------------------------------------------------------
+# PUT /auth/profile
+# ------------------------------------------------------------------
+@router.put("/profile", response_model=UserPublicResponse)
+def update_profile(
+    body: UserUpdateProfileRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update the authenticated user's profile fields."""
+    updated = handle_update_profile(current_user["id"], body)
+    has_address = bool(updated.get("city") or updated.get("address"))
+    has_phone = bool(updated.get("phone"))
+    return {
+        "id": updated["id"],
+        "username": updated["username"],
+        "email": updated["email"],
+        "full_name": updated.get("full_name") or "",
+        "is_admin": bool(updated.get("is_admin", False)),
+        "phone": updated.get("phone"),
+        "address": updated.get("address"),
+        "city": updated.get("city"),
+        "state": updated.get("state"),
+        "pincode": updated.get("pincode"),
+        "profile_complete": has_address and has_phone,
     }

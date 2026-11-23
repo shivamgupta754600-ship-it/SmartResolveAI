@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS users (
     email           VARCHAR(255) UNIQUE NOT NULL,
     hashed_password VARCHAR(255) NOT NULL,
     full_name       VARCHAR(100) DEFAULT '',
+    phone           VARCHAR(15)  DEFAULT NULL,
+    address         TEXT         DEFAULT NULL,
+    city            VARCHAR(100) DEFAULT NULL,
+    state           VARCHAR(100) DEFAULT NULL,
+    pincode         VARCHAR(10)  DEFAULT NULL,
     is_active       BOOLEAN      DEFAULT TRUE,
     is_admin        BOOLEAN      DEFAULT FALSE,
     created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
@@ -38,6 +43,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS prediction_history (
     id                  INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_number       VARCHAR(20)  UNIQUE NULL,
     user_id             INT          NULL,       -- linked citizen (nullable for anonymous)
     grievance_text      TEXT         NOT NULL,
     predicted_category  VARCHAR(100) NOT NULL,
@@ -99,4 +105,28 @@ SET @sql = IF(@col_exists = 0,
          ADD COLUMN reviewed_at    TIMESTAMP NULL",
     'SELECT 1'
 );
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ============================================================
+-- MIGRATION: add address/phone fields to users (v2.1)
+-- ============================================================
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'phone');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE users ADD COLUMN phone VARCHAR(15) DEFAULT NULL AFTER full_name,
+     ADD COLUMN address TEXT DEFAULT NULL,
+     ADD COLUMN city VARCHAR(100) DEFAULT NULL,
+     ADD COLUMN state VARCHAR(100) DEFAULT NULL,
+     ADD COLUMN pincode VARCHAR(10) DEFAULT NULL',
+    'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- MIGRATION: add ticket_number to prediction_history (v2.1)
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'prediction_history' AND COLUMN_NAME = 'ticket_number');
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE prediction_history ADD COLUMN ticket_number VARCHAR(20) UNIQUE NULL AFTER id',
+    'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

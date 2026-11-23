@@ -16,7 +16,9 @@ from app.core.security import (
 from app.repositories.user import (
     create_user,
     get_user_by_email,
+    get_user_by_id,
     get_user_by_username,
+    update_user_profile,
 )
 
 
@@ -25,6 +27,7 @@ def register_user(
     email: str,
     password: str,
     full_name: str = "",
+    phone: str = None,
 ) -> dict:
     """
     Create a new citizen account.
@@ -37,9 +40,18 @@ def register_user(
         raise ValueError("An account with this email already exists.")
 
     hashed = hash_password(password)
-    user_id = create_user(username, email, hashed, full_name)
+    user_id = create_user(username, email, hashed, full_name, phone)
 
     return {"id": user_id, "username": username, "email": email}
+
+
+def update_profile(user_id: int, **kwargs) -> dict:
+    """Update profile fields; return the refreshed user dict."""
+    update_user_profile(user_id, **kwargs)
+    user = get_user_by_id(user_id)
+    if not user:
+        raise ValueError("User not found.")
+    return user
 
 
 def login_user(username: str, password: str) -> dict:

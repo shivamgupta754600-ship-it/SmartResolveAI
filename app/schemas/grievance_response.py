@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 class GrievanceResponse(BaseModel):
 
     prediction_id: int = Field(description="Unique ID of the saved prediction")
+    ticket_number: Optional[str] = Field(default=None, description="GRV-YYYY-NNNNNN reference number")
     text: str = Field(description="Original grievance text (after normalisation)")
     predicted_category: str = Field(description="Category predicted by the ML model")
     confidence: float = Field(ge=0.0, le=1.0, description="Model confidence score 0–1")

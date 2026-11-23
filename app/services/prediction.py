@@ -210,7 +210,7 @@ def predict_grievance(text: str, user_id: Optional[int] = None) -> dict:
     # 15. SAVE TO DATABASE
     # ------------------------------------------------------------------
     try:
-        prediction_id = save_prediction(
+        saved = save_prediction(
             grievance_text=text,
             predicted_category=predicted_category,
             confidence=confidence,
@@ -226,7 +226,8 @@ def predict_grievance(text: str, user_id: Optional[int] = None) -> dict:
     # 16. RETURN RESULT
     # ------------------------------------------------------------------
     return {
-        "prediction_id": prediction_id,
+        "prediction_id": saved["id"],
+        "ticket_number": saved["ticket_number"],
         "text": text,
         "predicted_category": predicted_category,
         "confidence": confidence,

@@ -9,14 +9,14 @@ import { api } from '../api/client'
 import { useToast } from '../components/Toast'
 
 const CAT_META = {
-  water_supply     : { icon: '💧', color: '#0284c7', bg: '#e0f2fe', label: 'Water Supply'      },
-  electricity      : { icon: '⚡', color: '#d97706', bg: '#fef3c7', label: 'Electricity'       },
-  roads            : { icon: '🛣️', color: '#475569', bg: '#f1f5f9', label: 'Roads'              },
-  waste_management : { icon: '♻️', color: '#16a34a', bg: '#dcfce7', label: 'Waste Management'  },
-  streetlights     : { icon: '💡', color: '#7c3aed', bg: '#ede9fe', label: 'Streetlights'      },
-  healthcare       : { icon: '🏥', color: '#dc2626', bg: '#fee2e2', label: 'Healthcare'         },
-  education        : { icon: '📚', color: '#1d4ed8', bg: '#dbeafe', label: 'Education'          },
-  other            : { icon: '📋', color: '#64748b', bg: '#f1f5f9', label: 'Other'              },
+  water_supply        : { icon: '💧', color: '#0284c7', bg: '#e0f2fe', label: 'Water Supply'      },
+  electricity         : { icon: '⚡', color: '#d97706', bg: '#fef3c7', label: 'Electricity'       },
+  road_infrastructure : { icon: '🛣️', color: '#475569', bg: '#f1f5f9', label: 'Roads'              },
+  waste_management    : { icon: '♻️', color: '#16a34a', bg: '#dcfce7', label: 'Waste Management'  },
+  streetlight         : { icon: '💡', color: '#7c3aed', bg: '#ede9fe', label: 'Streetlights'      },
+  healthcare_services : { icon: '🏥', color: '#dc2626', bg: '#fee2e2', label: 'Healthcare'         },
+  education_services  : { icon: '📚', color: '#1d4ed8', bg: '#dbeafe', label: 'Education'          },
+  other               : { icon: '📋', color: '#64748b', bg: '#f1f5f9', label: 'Other'              },
 }
 function catMeta(cat) { return CAT_META[cat] ?? { icon: '📋', color: '#64748b', bg: '#f1f5f9', label: cat } }
 
@@ -142,7 +142,7 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-gray-100">
-                    {['#', 'User', 'Grievance', 'Department', 'Conf.', 'Status', 'Date', 'Actions'].map(h => (
+                    {['Ticket', 'User', 'Grievance', 'Department', 'Conf.', 'Status', 'Date', 'Actions'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                         {h}
                       </th>
@@ -160,11 +160,16 @@ export default function AdminPage() {
                         ${expanded ? 'bg-brand-50/40' : ''}`}
                         onClick={() => setExpandedId(expanded ? null : row.id)}
                       >
-                        <td className="px-4 py-3.5 text-gray-400 font-mono text-xs">#{row.id}</td>
+                        <td className="px-4 py-3.5 font-mono text-xs">
+                          <span className="text-brand-700 font-bold">{row.ticket_number ?? `#${row.id}`}</span>
+                        </td>
                         <td className="px-4 py-3.5">
-                          <span className="text-xs font-medium text-gray-600">
-                            {row.username ?? <span className="text-gray-300 italic">anon</span>}
-                          </span>
+                          <div>
+                            <span className="text-xs font-medium text-gray-600">
+                              {row.submitted_by ?? <span className="text-gray-300 italic">anon</span>}
+                            </span>
+                            {row.phone && <div className="text-xs text-gray-400">{row.phone}</div>}
+                          </div>
                         </td>
                         <td className="px-4 py-3.5 max-w-[200px]">
                           <p className="truncate text-gray-700 text-xs">{row.grievance_text}</p>
@@ -227,13 +232,36 @@ function ExpandedRow({ row, onReview }) {
 
   return (
     <div className="flex flex-wrap gap-6 items-start">
-      {/* Full text */}
-      <div className="flex-1 min-w-[200px]">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Full Grievance</div>
-        <p className="text-sm text-gray-700 leading-relaxed">{row.grievance_text}</p>
-        {row.review_notes && (
-          <div className="mt-3 px-3 py-2 bg-white rounded-lg border border-gray-100 text-xs text-gray-500">
-            <strong className="text-gray-600">Review note:</strong> {row.review_notes}
+      {/* Full text + citizen info */}
+      <div className="flex-1 min-w-[200px] space-y-3">
+        <div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Full Grievance</div>
+          <p className="text-sm text-gray-700 leading-relaxed">{row.grievance_text}</p>
+          {row.ticket_number && (
+            <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-mono font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-lg">
+              🎫 {row.ticket_number}
+            </div>
+          )}
+          {row.review_notes && (
+            <div className="mt-2 px-3 py-2 bg-white rounded-lg border border-gray-100 text-xs text-gray-500">
+              <strong className="text-gray-600">Review note:</strong> {row.review_notes}
+            </div>
+          )}
+        </div>
+
+        {/* Citizen contact info */}
+        {(row.phone || row.city || row.address) && (
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs space-y-1">
+            <div className="font-semibold text-blue-800 mb-1.5">📋 Citizen Contact</div>
+            {row.full_name && <div className="text-blue-700"><span className="font-medium">Name:</span> {row.full_name}</div>}
+            {row.phone     && <div className="text-blue-700"><span className="font-medium">Phone:</span> {row.phone}</div>}
+            {row.address   && <div className="text-blue-700"><span className="font-medium">Address:</span> {row.address}</div>}
+            {(row.city || row.state || row.pincode) && (
+              <div className="text-blue-700">
+                <span className="font-medium">Location:</span>{' '}
+                {[row.city, row.state, row.pincode].filter(Boolean).join(', ')}
+              </div>
+            )}
           </div>
         )}
       </div>

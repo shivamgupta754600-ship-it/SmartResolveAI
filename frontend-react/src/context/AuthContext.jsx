@@ -31,8 +31,17 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  async function refreshUser() {
+    try {
+      const me = await api.auth.me()
+      session.setUser(me)
+      setUser(me)
+      return me
+    } catch { return null }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin: !!user?.is_admin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, isAdmin: !!user?.is_admin }}>
       {children}
     </AuthContext.Provider>
   )

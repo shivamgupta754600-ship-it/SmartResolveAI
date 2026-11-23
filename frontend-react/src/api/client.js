@@ -66,11 +66,13 @@ async function request(endpoint, options = {}, _retried = false) {
 // ── API surface ──────────────────────────────────────────────────────
 export const api = {
   auth: {
-    login    : (username, password) =>
+    login          : (username, password) =>
       request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
-    register : (body) =>
+    register       : (body) =>
       request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-    me       : () => request('/auth/me'),
+    me             : () => request('/auth/me'),
+    updateProfile  : (body) =>
+      request('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
   },
 
   grievances: {

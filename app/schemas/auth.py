@@ -5,6 +5,8 @@ SmartResolve AI - Auth Pydantic Schemas (request / response models)
 from __future__ import annotations
 
 import re
+from typing import Optional
+
 from pydantic import BaseModel, Field, EmailStr, field_validator
 
 
@@ -24,6 +26,7 @@ class UserRegisterRequest(BaseModel):
         description="At least 8 chars with 1 uppercase and 1 digit.",
     )
     full_name: str = Field(default="", max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=15, description="10-digit mobile number.")
 
     @field_validator("username")
     @classmethod
@@ -43,14 +46,48 @@ class UserRegisterRequest(BaseModel):
             raise ValueError("Password must contain at least one number.")
         return v
 
+    @field_validator("phone")
+    @classmethod
+    def _validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        digits = re.sub(r"[\s\-\+()]", "", v)
+        if not re.match(r"^\d{10,15}$", digits):
+            raise ValueError("Phone must contain 10–15 digits.")
+        return digits
+
 
 class UserLoginRequest(BaseModel):
-    """
-    JSON login body.  For Swagger's Authorize button we also expose
-    the OAuth2 form-data endpoint at POST /auth/login.
-    """
     username: str = Field(...)
     password: str = Field(...)
+
+
+class UserUpdateProfileRequest(BaseModel):
+    full_name: Optional[str] = Field(default=None, max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=15)
+    address: Optional[str] = Field(default=None, max_length=500)
+    city: Optional[str] = Field(default=None, max_length=100)
+    state: Optional[str] = Field(default=None, max_length=100)
+    pincode: Optional[str] = Field(default=None, max_length=10)
+
+    @field_validator("phone")
+    @classmethod
+    def _validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        digits = re.sub(r"[\s\-\+()]", "", v)
+        if not re.match(r"^\d{10,15}$", digits):
+            raise ValueError("Phone must contain 10–15 digits.")
+        return digits
+
+    @field_validator("pincode")
+    @classmethod
+    def _validate_pincode(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if not re.match(r"^\d{6}$", v):
+            raise ValueError("Pincode must be 6 digits.")
+        return v
 
 
 class TokenResponse(BaseModel):
@@ -70,3 +107,9 @@ class UserPublicResponse(BaseModel):
     email: str
     full_name: str
     is_admin: bool
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    profile_complete: bool = False
