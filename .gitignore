@@ -8,3 +8,15 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .pytest_cache/
+# Frontend
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/.vite/
+
+# Python
+__pycache__/
+*.pyc
+.env
+*.pkl
+venv/
+.venv/

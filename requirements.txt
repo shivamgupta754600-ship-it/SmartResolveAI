@@ -1,6 +1,4 @@
-
 # SmartResolve AI - Project Dependencies
-
 # Backend API
 fastapi==0.141.1
 uvicorn==0.53.0
@@ -16,3 +14,22 @@ mysql-connector-python==26.7.0
 
 # Environment Variables
 python-dotenv==1.2.4
+
+# Authentication (JWT)
+python-jose[cryptography]==3.4.0
+passlib[bcrypt]==1.7.4
+
+# Configuration
+pydantic-settings==2.9.1
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Static file serving (frontend)
+aiofiles==24.1.0
+
+# Email validation for Pydantic
+email-validator==2.2.0
+
+# OAuth2 form data (required by FastAPI for Swagger login)
+python-multipart==0.0.20

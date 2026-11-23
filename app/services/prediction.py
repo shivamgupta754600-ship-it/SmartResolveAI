@@ -1,213 +1,237 @@
+"""
+SmartResolve AI - Prediction Service (Layer 3)
+Business logic: input guardrails → ML prediction → DB save → response dict.
+"""
 
+from __future__ import annotations
+
+import re
+import unicodedata
 from pathlib import Path
+from typing import Optional
 
 import joblib
 
+from app.core.config import settings
 from app.repositories.prediction import save_prediction
 
 
-# ==========================================
+# ======================================================================
 # 1. MODEL CONFIGURATION
-# ==========================================
+# ======================================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-MODEL_PATH = (
-    PROJECT_ROOT
-    / "ml"
-    / "smartresolve_tuned_model.joblib"
-)
-
-MIN_TEXT_LENGTH = 5
-MAX_TEXT_LENGTH = 1000
-
-CONFIDENCE_THRESHOLD = 0.60
+MODEL_PATH = PROJECT_ROOT / "ml" / "smartresolve_tuned_model.joblib"
 
 
-# ==========================================
-# 2. LOAD MODEL
-# ==========================================
+# ======================================================================
+# 2. LOAD MODEL  (once at startup)
+# ======================================================================
 
 try:
-
     model = joblib.load(MODEL_PATH)
-
-    print("SmartResolve tuned model loaded successfully.")
-
+    print("SmartResolve model loaded successfully.")
 except Exception as error:
-
     model = None
-
     print("Error loading model:", error)
 
 
-# ==========================================
-# 3. PREDICTION FUNCTION
-# ==========================================
+# ======================================================================
+# 3. COMPILED GUARDRAIL PATTERNS
+# ======================================================================
 
-def predict_grievance(text: str) -> dict:
+# XSS / HTML injection
+_HTML_INJECTION_RE = re.compile(
+    r"<[a-zA-Z][^>]*>|</[a-zA-Z]+>|javascript\s*:|on[a-z]+\s*=",
+    re.IGNORECASE,
+)
 
-    # --------------------------------------
-    # GUARDRAIL 1: INPUT TYPE
-    # --------------------------------------
+# SQL injection attempts (command-style sequences only — avoids false positives)
+_SQL_INJECTION_RE = re.compile(
+    r"(--|;\s*(DROP|DELETE|INSERT|UPDATE|TRUNCATE|CREATE|ALTER|EXEC)\s"
+    r"|UNION\s+SELECT|'\s*OR\s*'[^']*'=')",
+    re.IGNORECASE,
+)
 
-    if not isinstance(text, str):
+# Excessive single-word repetition (same word 5+ times in a row)
+_REPETITION_RE = re.compile(r"(\b\w+\b)(\s+\1){4,}", re.IGNORECASE)
 
-        raise ValueError(
-            "Grievance text must be a string."
-        )
+# Non-printable / control characters (keep standard Unicode letters/numbers)
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
-    # --------------------------------------
-    # GUARDRAIL 2: REMOVE EXTRA SPACES
-    # --------------------------------------
 
-    text = text.strip()
+def _normalise_text(text: str) -> str:
+    """NFKC-normalise and strip control characters."""
+    text = unicodedata.normalize("NFKC", text)
+    text = _CONTROL_CHAR_RE.sub("", text)
+    return text.strip()
 
-    # --------------------------------------
-    # GUARDRAIL 3: EMPTY INPUT
-    # --------------------------------------
 
+def _has_excessive_special_chars(text: str) -> bool:
+    """True when >50 % of characters are non-word, non-space characters."""
     if not text:
+        return False
+    special = sum(1 for c in text if not c.isalnum() and not c.isspace())
+    return (special / len(text)) > 0.50
 
+
+# ======================================================================
+# 4. PREDICTION FUNCTION
+# ======================================================================
+
+def predict_grievance(text: str, user_id: Optional[int] = None) -> dict:
+    """
+    Validate, classify, and persist a citizen grievance.
+    Returns the full prediction result dict.
+    Raises ValueError for invalid input, RuntimeError for infra errors.
+    """
+
+    # ------------------------------------------------------------------
+    # GUARDRAIL 1 — Type check
+    # ------------------------------------------------------------------
+    if not isinstance(text, str):
+        raise ValueError("Grievance text must be a string.")
+
+    # ------------------------------------------------------------------
+    # GUARDRAIL 2 — Normalise & strip
+    # ------------------------------------------------------------------
+    text = _normalise_text(text)
+
+    # ------------------------------------------------------------------
+    # GUARDRAIL 3 — Empty after normalisation
+    # ------------------------------------------------------------------
+    if not text:
+        raise ValueError("Grievance text cannot be empty.")
+
+    # ------------------------------------------------------------------
+    # GUARDRAIL 4 — Minimum length
+    # ------------------------------------------------------------------
+    if len(text) < settings.MIN_TEXT_LENGTH:
         raise ValueError(
-            "Grievance text cannot be empty."
+            f"Grievance text must contain at least {settings.MIN_TEXT_LENGTH} characters."
         )
 
-    # --------------------------------------
-    # GUARDRAIL 4: MINIMUM LENGTH
-    # --------------------------------------
-
-    if len(text) < MIN_TEXT_LENGTH:
-
+    # ------------------------------------------------------------------
+    # GUARDRAIL 5 — Maximum length
+    # ------------------------------------------------------------------
+    if len(text) > settings.MAX_TEXT_LENGTH:
         raise ValueError(
-            f"Grievance text must contain at least "
-            f"{MIN_TEXT_LENGTH} characters."
+            f"Grievance text cannot exceed {settings.MAX_TEXT_LENGTH} characters."
         )
 
-    # --------------------------------------
-    # GUARDRAIL 5: MAXIMUM LENGTH
-    # --------------------------------------
-
-    if len(text) > MAX_TEXT_LENGTH:
-
+    # ------------------------------------------------------------------
+    # GUARDRAIL 6 — XSS / HTML injection detection
+    # ------------------------------------------------------------------
+    if _HTML_INJECTION_RE.search(text):
         raise ValueError(
-            f"Grievance text cannot exceed "
-            f"{MAX_TEXT_LENGTH} characters."
+            "Input contains disallowed HTML or script patterns. "
+            "Please submit a plain-text description of your grievance."
         )
 
-    # --------------------------------------
-    # GUARDRAIL 6: MODEL AVAILABILITY
-    # --------------------------------------
+    # ------------------------------------------------------------------
+    # GUARDRAIL 7 — SQL injection detection
+    # ------------------------------------------------------------------
+    if _SQL_INJECTION_RE.search(text):
+        raise ValueError(
+            "Input contains disallowed SQL patterns. "
+            "Please describe your grievance in plain language."
+        )
 
+    # ------------------------------------------------------------------
+    # GUARDRAIL 8 — Excessive special characters (spam / noise)
+    # ------------------------------------------------------------------
+    if _has_excessive_special_chars(text):
+        raise ValueError(
+            "Input appears to contain excessive special characters. "
+            "Please describe your grievance in plain language."
+        )
+
+    # ------------------------------------------------------------------
+    # GUARDRAIL 9 — Excessive word repetition (bot / spam)
+    # ------------------------------------------------------------------
+    if _REPETITION_RE.search(text):
+        raise ValueError(
+            "Input appears to contain repeated content. "
+            "Please describe your grievance clearly."
+        )
+
+    # ------------------------------------------------------------------
+    # GUARDRAIL 10 — Model availability
+    # ------------------------------------------------------------------
     if model is None:
-
         raise RuntimeError(
-            "Prediction model is unavailable."
+            "The prediction model is currently unavailable. Please try again later."
         )
 
-    # --------------------------------------
-    # 7. PREDICT CATEGORY
-    # --------------------------------------
-
+    # ------------------------------------------------------------------
+    # 11. PREDICT CATEGORY
+    # ------------------------------------------------------------------
     predicted_category = model.predict([text])[0]
 
-    # --------------------------------------
-    # 8. GET PROBABILITIES
-    # --------------------------------------
-
-    probabilities = model.predict_proba([text])[0]
-
+    # ------------------------------------------------------------------
+    # 12. GET CLASS PROBABILITIES
+    # ------------------------------------------------------------------
+    probabilities_raw = model.predict_proba([text])[0]
     classes = model.classes_
 
     probability_map = {
-        category: round(float(probability), 4)
-        for category, probability in zip(
-            classes,
-            probabilities
-        )
+        category: round(float(prob), 4)
+        for category, prob in zip(classes, probabilities_raw)
     }
 
-    # --------------------------------------
-    # 9. CALCULATE CONFIDENCE
-    # --------------------------------------
+    confidence = round(float(max(probabilities_raw)), 4)
 
-    confidence = float(max(probabilities))
-
-    confidence = round(confidence, 4)
-
-    # --------------------------------------
-    # 10. HUMAN REVIEW GUARDRAIL
-    # --------------------------------------
-
-    needs_human_review = (
-        confidence < CONFIDENCE_THRESHOLD
-    )
+    # ------------------------------------------------------------------
+    # 13. HUMAN-REVIEW FLAG
+    # ------------------------------------------------------------------
+    needs_human_review = confidence < settings.CONFIDENCE_THRESHOLD
 
     if needs_human_review:
-
         review_message = (
-            "Low model confidence. "
-            "Human review is required before routing."
+            "Low model confidence. Human review is required before routing."
         )
-
     else:
-
         review_message = (
-            "Prediction confidence is above "
-            "the review threshold. "
-            "Human review may still be required."
+            "Confidence is above the review threshold. "
+            "Human review is still recommended before final routing."
         )
 
-    # --------------------------------------
-    # 11. SAFETY NOTICE
-    # --------------------------------------
-
+    # ------------------------------------------------------------------
+    # 14. SAFETY NOTICE
+    # ------------------------------------------------------------------
     safety_note = (
         "Educational classification model. "
-        "Predictions are not official government "
-        "decisions or clinical diagnoses. "
+        "Predictions are not official government decisions. "
         "Human review is required before final routing."
     )
 
-    # --------------------------------------
-    # 12. SAVE PREDICTION TO DATABASE
-    # --------------------------------------
-
+    # ------------------------------------------------------------------
+    # 15. SAVE TO DATABASE
+    # ------------------------------------------------------------------
     try:
-
         prediction_id = save_prediction(
             grievance_text=text,
             predicted_category=predicted_category,
             confidence=confidence,
-            needs_human_review=needs_human_review
+            needs_human_review=needs_human_review,
+            user_id=user_id,
         )
-
     except Exception as error:
-
         raise RuntimeError(
-            f"Prediction generated, but saving failed: {error}"
+            f"Prediction generated but could not be saved: {error}"
         )
 
-    # --------------------------------------
-    # 13. RETURN RESULT
-    # --------------------------------------
-
+    # ------------------------------------------------------------------
+    # 16. RETURN RESULT
+    # ------------------------------------------------------------------
     return {
-
         "prediction_id": prediction_id,
-
         "text": text,
-
         "predicted_category": predicted_category,
-
         "confidence": confidence,
-
         "needs_human_review": needs_human_review,
-
         "probabilities": probability_map,
-
         "review_message": review_message,
-
-        "safety_note": safety_note
-
+        "safety_note": safety_note,
     }
