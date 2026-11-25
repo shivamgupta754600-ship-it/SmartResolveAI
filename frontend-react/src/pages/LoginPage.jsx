@@ -23,6 +23,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
+      <a href="/" className="absolute z-20 top-3 right-4 rounded-lg bg-white px-3 py-2 text-sm text-brand-800 underline">Case portal</a>
 
       {/* ── LEFT HERO PANEL ──────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12

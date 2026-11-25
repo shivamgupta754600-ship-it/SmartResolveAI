@@ -4,6 +4,8 @@ import { ToastProvider } from './components/Toast'
 import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import CasePortal from './pages/CasePortal'
+import StaffCases from './pages/StaffCases'
 import AdminPage from './pages/AdminPage'
 
 export default function App() {
@@ -12,8 +14,9 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <Routes>
-            <Route path="/" element={<LoginPage />} />
-            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/" element={<CasePortal />} />
+            <Route path="/staff" element={<StaffCases />} />
+            <Route path="/login" element={<LoginPage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<DashboardPage />} />

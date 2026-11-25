@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 const TOKEN_KEY   = 'sr_access_token'
 const REFRESH_KEY = 'sr_refresh_token'
@@ -45,12 +45,12 @@ async function request(endpoint, options = {}, _retried = false) {
   const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers })
 
   // Try once to refresh on 401
-  if (res.status === 401 && !_retried) {
+  if (res.status === 401 && token && !_retried && endpoint !== '/auth/login') {
     const ok = await tryRefresh()
     if (!ok) {
       session.clear()
-      window.location.href = '/'
-      return
+      window.location.href = '/login'
+      throw new Error('Your session expired. Please sign in again.')
     }
     return request(endpoint, options, true)
   }

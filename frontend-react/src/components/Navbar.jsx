@@ -28,6 +28,7 @@ export default function Navbar() {
 
         {/* Nav links */}
         <nav className="hidden sm:flex items-center gap-1">
+          <Link to="/" className="px-3 py-2 text-sm font-semibold text-brand-800">Case portal</Link>
           <NavLink to="/dashboard" icon={<LayoutDashboard size={15}/>} label="Dashboard" active={pathname === '/dashboard'} />
           {isAdmin && (
             <NavLink to="/admin" icon={<ShieldCheck size={15}/>} label="Admin Panel" active={pathname === '/admin'} />

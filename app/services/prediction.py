@@ -80,6 +80,18 @@ def _has_excessive_special_chars(text: str) -> bool:
 # 4. PREDICTION FUNCTION
 # ======================================================================
 
+def suggest_category(text: str) -> tuple[str, dict[str, float]]:
+    if model is None:
+        raise RuntimeError("The prediction model is currently unavailable.")
+    text = _normalise_text(text)
+    category = str(model.predict([text])[0])
+    scores = model.predict_proba([text])[0]
+    return category, {
+        str(label): round(float(score), 4)
+        for label, score in zip(model.classes_, scores)
+    }
+
+
 def predict_grievance(text: str, user_id: Optional[int] = None) -> dict:
     """
     Validate, classify, and persist a citizen grievance.
@@ -156,31 +168,8 @@ def predict_grievance(text: str, user_id: Optional[int] = None) -> dict:
             "Please describe your grievance clearly."
         )
 
-    # ------------------------------------------------------------------
-    # GUARDRAIL 10 — Model availability
-    # ------------------------------------------------------------------
-    if model is None:
-        raise RuntimeError(
-            "The prediction model is currently unavailable. Please try again later."
-        )
-
-    # ------------------------------------------------------------------
-    # 11. PREDICT CATEGORY
-    # ------------------------------------------------------------------
-    predicted_category = model.predict([text])[0]
-
-    # ------------------------------------------------------------------
-    # 12. GET CLASS PROBABILITIES
-    # ------------------------------------------------------------------
-    probabilities_raw = model.predict_proba([text])[0]
-    classes = model.classes_
-
-    probability_map = {
-        category: round(float(prob), 4)
-        for category, prob in zip(classes, probabilities_raw)
-    }
-
-    confidence = round(float(max(probabilities_raw)), 4)
+    predicted_category, probability_map = suggest_category(text)
+    confidence = max(probability_map.values())
 
     # ------------------------------------------------------------------
     # 13. HUMAN-REVIEW FLAG

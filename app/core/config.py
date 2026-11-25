@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -19,6 +20,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "SmartResolve AI"
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
+    CASE_PUBLIC_DEPLOYMENT: bool = False
 
     # ------------------------------------------------------------------
     # MySQL
@@ -67,6 +69,12 @@ class Settings(BaseSettings):
     CONFIDENCE_THRESHOLD: float = 0.60
     MIN_TEXT_LENGTH: int = 5
     MAX_TEXT_LENGTH: int = 1000
+
+    @model_validator(mode="after")
+    def validate_deployment_key(self):
+        if self.CASE_PUBLIC_DEPLOYMENT and (len(self.SECRET_KEY) < 32 or self.SECRET_KEY.startswith("CHANGE-THIS")):
+            raise ValueError("Public deployment requires a randomly generated SECRET_KEY.")
+        return self
 
     model_config = {
         "env_file": ".env",

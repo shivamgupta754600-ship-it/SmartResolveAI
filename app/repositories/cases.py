@@ -1,0 +1,300 @@
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+from secrets import token_hex
+import os
+
+from fastapi import HTTPException
+from mysql.connector import IntegrityError
+
+from app.database import get_database_connection
+
+
+def utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+@contextmanager
+def transaction():
+    connection = get_database_connection()
+    try:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SET time_zone = '+00:00'")
+            yield cursor
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def event(cursor, case_id, kind, *, actor=None, note=None, public=False, sms=False):
+    cursor.execute(
+        "INSERT INTO case_events (case_id, actor_id, kind, note, public) VALUES (%s,%s,%s,%s,%s)",
+        (case_id, actor, kind, note, public),
+    )
+    if sms:
+        cursor.execute("INSERT INTO case_sms (event_id) VALUES (%s)", (cursor.lastrowid,))
+
+
+def catalog():
+    with transaction() as cursor:
+        cursor.execute("SELECT code, name FROM service_wards ORDER BY name")
+        wards = cursor.fetchall()
+        cursor.execute("SELECT code, name FROM service_departments ORDER BY name")
+        return {"wards": wards, "departments": cursor.fetchall(), "sms_enabled": sms_enabled()}
+
+
+def sms_enabled():
+    return bool(os.getenv("CASE_SMS_WEBHOOK", "").startswith("https://") and os.getenv("CASE_SMS_TOKEN"))
+
+
+def submit(body, *, staff_id=None, channel="web"):
+    digest = sha256(body.receipt.encode()).digest()
+    ticket = "SR-" + token_hex(11).upper()[:21]
+    with transaction() as cursor:
+        if staff_id:
+            require_role(cursor, staff_id, body.ward, body.department, ("intake", "supervisor"))
+        cursor.execute("SELECT ticket FROM service_cases WHERE receipt_hash=%s", (digest,))
+        existing = cursor.fetchone()
+        if existing:
+            return existing
+        if body.sms_phone and not sms_enabled():
+            raise HTTPException(422, "sms_unavailable")
+        cursor.execute("SELECT code FROM service_wards WHERE code=%s", (body.ward,))
+        if cursor.fetchone() is None:
+            raise HTTPException(422, "unknown_ward")
+        deadline = utc_now() + timedelta(hours=response_hours(cursor, body.department))
+        try:
+            cursor.execute(
+                """INSERT INTO service_cases
+                   (ticket, receipt_hash, ward, department, description, location,
+                    language, channel, contact_phone, next_update_at)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (ticket, digest, body.ward, body.department, body.description,
+                 body.location, body.language, channel, body.sms_phone, deadline),
+            )
+        except IntegrityError as error:
+            if error.errno != 1062:
+                raise
+            cursor.execute(
+                "SELECT ticket FROM service_cases WHERE receipt_hash=%s FOR UPDATE", (digest,),
+            )
+            existing = cursor.fetchone()
+            if existing is None:
+                raise
+            return existing
+        event(cursor, cursor.lastrowid, "received", actor=staff_id, public=True, sms=bool(body.sms_phone))
+        return {"ticket": ticket}
+
+
+def response_hours(cursor, department):
+    cursor.execute("SELECT response_hours FROM service_departments WHERE code=%s", (department,))
+    row = cursor.fetchone()
+    if row is None:
+        raise HTTPException(422, "unknown_department")
+    return row["response_hours"]
+
+
+def require_role(cursor, user_id, ward, department, roles):
+    cursor.execute(
+        "SELECT role FROM case_staff WHERE user_id=%s AND ward=%s AND department=%s",
+        (user_id, ward, department),
+    )
+    if not any(row["role"] in roles for row in cursor.fetchall()):
+        raise HTTPException(403, "outside_scope")
+
+
+def resident_case(cursor, access):
+    cursor.execute(
+        "SELECT * FROM service_cases WHERE ticket=%s AND receipt_hash=%s FOR UPDATE",
+        (access.ticket, sha256(access.receipt.encode()).digest()),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        raise HTTPException(404, "case_not_found")
+    return row
+
+
+def resident_view(access):
+    with transaction() as cursor:
+        row = resident_case(cursor, access)
+        event(cursor, row["id"], "resident_view")
+        cursor.execute(
+            "SELECT id, kind, note, created_at FROM case_events WHERE case_id=%s AND public=TRUE ORDER BY id",
+            (row["id"],),
+        )
+        result = {key: row[key] for key in ("ticket", "ward", "department", "status", "next_update_at", "created_at")}
+        events = cursor.fetchall()
+        cursor.execute("SELECT name FROM service_departments WHERE code=%s", (row["department"],))
+        return {**result, "office": cursor.fetchone()["name"], "events": events}
+
+
+def resident_action(body):
+    with transaction() as cursor:
+        row = resident_case(cursor, body)
+        permitted = {"reply": "needs_information", "reopen": "resolved"}
+        if row["status"] != permitted[body.action]:
+            raise HTTPException(409, "invalid_transition")
+        status = "in_progress" if body.action == "reply" else "reopen_requested"
+        deadline = utc_now() + timedelta(hours=response_hours(cursor, row["department"]))
+        cursor.execute(
+            """UPDATE service_cases SET status=%s, next_update_at=%s,
+               resolved_at=NULL, escalated_at=NULL WHERE id=%s""",
+            (status, deadline, row["id"]),
+        )
+        event(cursor, row["id"], status, note=body.note, public=True, sms=bool(row["contact_phone"]))
+    return {"status": status}
+
+
+def staff_scope(user_id):
+    with transaction() as cursor:
+        cursor.execute(
+            "SELECT ward, department, role FROM case_staff WHERE user_id=%s ORDER BY ward, department, role",
+            (user_id,),
+        )
+        return cursor.fetchall()
+
+
+def queue(user_id, after, limit, status_filter):
+    with transaction() as cursor:
+        cursor.execute(
+            """SELECT c.id, c.ticket, c.ward, c.department, c.status, c.created_at,
+                      c.next_update_at, c.escalated_at, c.assigned_at, c.suggested_category
+               FROM service_cases c WHERE c.id>%s
+               AND ((%s='resolved' AND c.status='resolved')
+                    OR (%s='open' AND c.status<>'resolved')
+                    OR (%s='overdue' AND c.status<>'resolved' AND c.next_update_at<UTC_TIMESTAMP()))
+               AND EXISTS (
+                   SELECT 1 FROM case_staff s WHERE s.user_id=%s AND s.ward=c.ward
+                   AND s.department=c.department AND s.role IN ('officer','supervisor')
+               ) ORDER BY c.id LIMIT %s""",
+            (after, status_filter, status_filter, status_filter, user_id, limit),
+        )
+        rows = cursor.fetchall()
+        # Queue summaries exclude resident text, precise location and contact details.
+        return rows
+
+
+def staff_case(cursor, user_id, ticket):
+    cursor.execute("SELECT * FROM service_cases WHERE ticket=%s FOR UPDATE", (ticket,))
+    row = cursor.fetchone()
+    if row is None:
+        raise HTTPException(404, "case_not_found")
+    try:
+        require_role(cursor, user_id, row["ward"], row["department"], ("officer", "supervisor"))
+    except HTTPException:
+        raise HTTPException(404, "case_not_found") from None
+    return row
+
+
+def staff_view(user_id, ticket):
+    with transaction() as cursor:
+        row = staff_case(cursor, user_id, ticket)
+        event(cursor, row["id"], "staff_view", actor=user_id)
+        cursor.execute(
+            """SELECT id, kind, note, created_at FROM case_events
+               WHERE case_id=%s AND kind NOT IN ('staff_view','resident_view') ORDER BY id""",
+            (row["id"],),
+        )
+        events = cursor.fetchall()
+        cursor.execute(
+            """SELECT DISTINCT u.id, u.username FROM case_staff s JOIN users u ON u.id=s.user_id
+               WHERE s.ward=%s AND s.department=%s AND s.role IN ('officer','supervisor')
+               AND u.is_active=TRUE ORDER BY u.username""",
+            (row["ward"], row["department"]),
+        )
+        officers = cursor.fetchall()
+        for private in ("receipt_hash", "contact_phone"):
+            row.pop(private)
+        return {**row, "events": events, "officers": officers, "assigned_to_me": row["officer_id"] == user_id}
+
+
+TRANSITIONS = {
+    "assign": ({"received", "assigned"}, "assigned"),
+    "transfer": ({"received", "assigned", "in_progress", "needs_information", "reopen_requested"}, "received"),
+    "start": ({"assigned"}, "in_progress"),
+    "request_information": ({"assigned", "in_progress"}, "needs_information"),
+    "update": ({"assigned", "in_progress", "needs_information"}, None),
+    "resolve": ({"assigned", "in_progress", "needs_information"}, "resolved"),
+    "accept_reopen": ({"reopen_requested"}, "received"),
+    "decline_reopen": ({"reopen_requested"}, "resolved"),
+}
+
+
+def staff_action(user_id, ticket, body):
+    with transaction() as cursor:
+        row = staff_case(cursor, user_id, ticket)
+        allowed, next_status = TRANSITIONS[body.action]
+        if row["status"] not in allowed:
+            raise HTTPException(409, "invalid_transition")
+        if body.action in {"transfer", "accept_reopen", "decline_reopen"}:
+            require_role(cursor, user_id, row["ward"], row["department"], ("supervisor",))
+        if row["officer_id"] and row["officer_id"] != user_id:
+            require_role(cursor, user_id, row["ward"], row["department"], ("supervisor",))
+        if body.action not in {"assign", "start"} and not body.note:
+            raise HTTPException(422, "note_required")
+
+        department = row["department"]
+        officer = row["officer_id"]
+        assigned_at = row["assigned_at"]
+        now = utc_now()
+        if body.action == "assign":
+            officer = body.officer_id or user_id
+            if officer != user_id:
+                require_role(cursor, user_id, row["ward"], department, ("supervisor",))
+            require_role(cursor, officer, row["ward"], department, ("officer", "supervisor"))
+            cursor.execute("SELECT id FROM users WHERE id=%s AND is_active=TRUE", (officer,))
+            if cursor.fetchone() is None:
+                raise HTTPException(422, "inactive_officer")
+            assigned_at = assigned_at or now
+        if body.action == "transfer":
+            if not body.department or body.department == department:
+                raise HTTPException(422, "choose_department")
+            department = body.department
+            cursor.execute(
+                """SELECT 1 FROM case_staff s JOIN users u ON u.id=s.user_id AND u.is_active=TRUE
+                   WHERE s.ward=%s AND s.department=%s AND s.role IN ('officer','supervisor') LIMIT 1""",
+                (row["ward"], department),
+            )
+            if cursor.fetchone() is None:
+                raise HTTPException(422, "department_unstaffed")
+        if body.action in {"transfer", "accept_reopen"}:
+            officer = None
+
+        status = next_status or row["status"]
+        deadline = now + timedelta(hours=response_hours(cursor, department))
+        cursor.execute(
+            """UPDATE service_cases SET department=%s, officer_id=%s, status=%s,
+               assigned_at=%s, next_update_at=%s, resolved_at=%s, escalated_at=NULL WHERE id=%s""",
+            (department, officer, status, assigned_at, deadline,
+             now if status == "resolved" else None, row["id"]),
+        )
+        if body.action == "transfer":
+            event(cursor, row["id"], "routing_changed", actor=user_id, note=f"{row['department']} → {department}")
+        event(cursor, row["id"], body.action, actor=user_id, note=body.note,
+              public=True, sms=bool(row["contact_phone"]))
+        return {"status": status}
+
+
+def metrics(user_id):
+    with transaction() as cursor:
+        cursor.execute(
+            """SELECT c.ward, c.department, c.language, COUNT(*) AS total,
+                      COUNT(CASE WHEN c.officer_id IS NOT NULL AND c.suggestion_state='ready' THEN 1 END) AS assessed,
+                      COUNT(CASE WHEN c.officer_id IS NOT NULL AND c.suggestion_state='ready'
+                                 AND c.suggested_category=d.name THEN 1 END) AS matching,
+
+                      SUM(c.status='resolved') AS resolved,
+                      SUM(c.status<>'resolved' AND c.next_update_at<UTC_TIMESTAMP()) AS overdue,
+                      AVG(TIMESTAMPDIFF(MINUTE,c.created_at,c.assigned_at)) AS avg_assignment_minutes,
+                      SUM(EXISTS(SELECT 1 FROM case_events e WHERE e.case_id=c.id AND e.kind='transfer')) AS transferred,
+                      SUM(EXISTS(SELECT 1 FROM case_events e WHERE e.case_id=c.id AND e.kind='reopen_requested')) AS reopened
+               FROM service_cases c JOIN service_departments d ON d.code=c.department WHERE EXISTS (
+                   SELECT 1 FROM case_staff s WHERE s.user_id=%s AND s.ward=c.ward
+                   AND s.department=c.department AND s.role='supervisor'
+               ) GROUP BY c.ward, c.department, c.language ORDER BY c.ward, c.department, c.language""",
+            (user_id,),
+        )
+        return cursor.fetchall()

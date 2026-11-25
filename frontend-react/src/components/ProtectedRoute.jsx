@@ -15,7 +15,7 @@ export default function ProtectedRoute({ adminOnly = false }) {
     )
   }
 
-  if (!user) return <Navigate to="/" replace />
+  if (!user) return <Navigate to="/login" replace />
   if (adminOnly && !user.is_admin) return <Navigate to="/dashboard" replace />
 
   return <Outlet />
