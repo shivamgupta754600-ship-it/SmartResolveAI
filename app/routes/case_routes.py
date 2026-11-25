@@ -3,8 +3,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.middleware.rate_limiter import limiter
-from app.repositories import cases
-from app.schemas.cases import AssistedInput, CaseAccess, CaseInput, ResidentAction, StaffAction, StaffLogin
+from app.repositories import cases, staff_work, municipal
+from app.schemas.cases import Responsibility, Referral, Acknowledgement, Delay, Appeal, Decision, Report
+from app.schemas.cases import IncidentLink, IncidentUpdate, AssistedInput, CaseAccess, CaseInput, ResidentAction, StaffAction, StaffLogin
 from app.services.case_staff import current_case_staff, staff_login
 
 router = APIRouter(prefix="/cases", tags=["Cases"])
@@ -77,3 +78,76 @@ def detail(response: Response, ticket: str, user_id: StaffId):
 @router.post("/staff/case/{ticket}")
 def action(ticket: str, body: StaffAction, user_id: StaffId):
     return cases.staff_action(user_id, ticket, body)
+
+
+@router.get("/staff/work")
+def daily_work(response: Response, user_id: StaffId, view: Literal["mine", "unassigned", "replied", "today", "overdue", "resolved", "open", "stalled"] = "mine",
+               offset: Annotated[int, Query(ge=0)] = 0):
+    response.headers["Cache-Control"] = "no-store"
+    return staff_work.daily_queue(user_id, view, offset)
+
+
+@router.post("/staff/case/{ticket}/link")
+def link(ticket: str, body: IncidentLink, user_id: StaffId):
+    return staff_work.link(user_id, ticket, body.ticket)
+
+
+@router.post("/staff/case/{ticket}/broadcast")
+def broadcast(ticket: str, body: IncidentUpdate, user_id: StaffId):
+    return staff_work.share(user_id, ticket, body)
+
+@router.post("/staff/register")
+def register(body: Responsibility, user_id: StaffId):
+    return municipal.register(user_id, body)
+
+
+@router.get("/staff/weekly")
+def weekly(user_id: StaffId):
+    return municipal.weekly(user_id)
+
+
+@router.get("/staff/appeals")
+def appeals(user_id: StaffId):
+    return municipal.appeals(user_id)
+
+
+@router.post("/appeal")
+@limiter.limit("10/minute")
+def appeal(request: Request, body: Appeal):
+    return municipal.file_appeal(body)
+
+
+@router.post("/staff/case/{ticket}/decision")
+def decide(ticket: str, body: Decision, user_id: StaffId):
+    return municipal.decide(user_id, ticket, body)
+
+
+@router.post("/staff/case/{ticket}/refer")
+def refer(ticket: str, body: Referral, user_id: StaffId):
+    return municipal.change(user_id, ticket, "refer", body)
+
+
+@router.post("/staff/case/{ticket}/acknowledge")
+def acknowledge(ticket: str, body: Acknowledgement, user_id: StaffId):
+    return municipal.change(user_id, ticket, "acknowledge", body)
+
+
+@router.post("/staff/case/{ticket}/delay")
+def delay(ticket: str, body: Delay, user_id: StaffId):
+    return municipal.change(user_id, ticket, "delay", body)
+
+
+@router.post("/staff/case/{ticket}/report")
+def report(ticket: str, body: Report, user_id: StaffId):
+    return municipal.change(user_id, ticket, "report", body)
+
+
+@router.get("/staff/reviewers")
+def reviewers(user_id: StaffId):
+    return municipal.reviewers(user_id)
+
+
+@router.get("/staff/register")
+def verification_history(response: Response, user_id: StaffId):
+    response.headers["Cache-Control"] = "no-store"
+    return municipal.verification_history(user_id)

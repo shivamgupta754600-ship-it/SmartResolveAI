@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { caseRequest, newReceipt } from '../api/cases'
+import { caseRequest, newReceipt, parseReceipt } from '../api/cases'
 import './cases.css'
+import { RecordDetails } from './MunicipalTools'
 
 const copy = {
   en: {
@@ -20,7 +21,7 @@ const copy = {
     invalid_transition: 'The case has changed. Check its latest status and try again.',
     catalog_error: 'The service list is unavailable. Reload this page to try again.',
     water: 'Water Supply', waste: 'Waste Management',
-    received: 'Received', assigned: 'Assigned', in_progress: 'In progress', needs_information: 'More information needed',
+    visit: 'Field visit recorded', blocked: 'Work blocked', refer:'Referred', acknowledge:'Acknowledgement recorded', delay:'Revised estimate', report:'Action Taken Report published', appeal_filed:'Formal appeal filed', appeal_decided:'Appeal decided', received: 'Received', assigned: 'Assigned', in_progress: 'In progress', needs_information: 'More information needed',
     resolved: 'Resolved', reopen_requested: 'Reopening requested', assign: 'Assigned to an officer',
     transfer: 'Transferred to another office', start: 'Work started', request_information: 'Office requested details',
     update: 'Office posted an update', resolve: 'Resolution recorded', accept_reopen: 'Reopening accepted',
@@ -43,7 +44,7 @@ const copy = {
     invalid_transition: 'शिकायत की स्थिति बदल गई है। नई स्थिति देखकर फिर कोशिश करें।',
     catalog_error: 'सेवाओं की सूची उपलब्ध नहीं है। पेज फिर से खोलें।',
     water: 'जल आपूर्ति', waste: 'कचरा प्रबंधन',
-    received: 'शिकायत मिली', assigned: 'अधिकारी को सौंपी गई', in_progress: 'कार्रवाई जारी है',
+    visit: 'स्थल निरीक्षण दर्ज हुआ', blocked: 'काम में रुकावट', refer:'संदर्भ भेजा गया', acknowledge:'पावती दर्ज हुई', delay:'संशोधित अनुमान', report:'कार्रवाई रिपोर्ट जारी हुई', appeal_filed:'अपील दर्ज हुई', appeal_decided:'अपील का निर्णय', received: 'शिकायत मिली', assigned: 'अधिकारी को सौंपी गई', in_progress: 'कार्रवाई जारी है',
     needs_information: 'और जानकारी चाहिए', resolved: 'समाधान दर्ज', reopen_requested: 'फिर से खोलने का अनुरोध',
     assign: 'अधिकारी को सौंपी गई', transfer: 'दूसरे कार्यालय को भेजी गई', start: 'कार्रवाई शुरू हुई',
     request_information: 'कार्यालय ने जानकारी माँगी', update: 'कार्यालय ने नई सूचना दी', resolve: 'समाधान दर्ज हुआ',
@@ -72,7 +73,7 @@ export function useCatalog() {
   return { catalog, catalogError }
 }
 
-export function IntakeForm({ catalog, catalogError, lang, scope, token }) {
+export function IntakeForm({ catalog, catalogError, lang, scope, token, onSaving }) {
   const t = copy[lang]
   const key = useRef(null)
   const [sms, setSms] = useState(false)
@@ -80,6 +81,8 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token }) {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(null)
   const [ward, setWard] = useState('')
+  const [department,setDepartment] = useState('')
+  const entries = (catalog?.register || []).filter(r => r.ward===ward && r.department===department)
   const allowed = scope?.filter(item => item.role === 'intake' || item.role === 'supervisor')
   const wards = catalog?.wards.filter(item => !allowed || allowed.some(r => r.ward === item.code))
   const departments = catalog?.departments.filter(item => !allowed || allowed.some(r => r.ward === ward && r.department === item.code))
@@ -88,6 +91,7 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token }) {
     event.preventDefault()
     setError('')
     setSaving(true)
+    onSaving?.(true)
     const data = Object.fromEntries(new FormData(event.currentTarget))
     if (data.sms_phone === '') delete data.sms_phone
     const body = { ...data, language: lang }
@@ -102,6 +106,7 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token }) {
       setError(t[err.message] || t.error)
     } finally {
       setSaving(false)
+      onSaving?.(false)
     }
   }
 
@@ -126,15 +131,19 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token }) {
   return <form onSubmit={submit}>
     <p>{t.privacy}</p>
     {catalogError && <p role="alert">{t.catalog_error}</p>}
-    <label>{t.ward}<select name="ward" required value={ward} onChange={event => setWard(event.target.value)}>
+    <label>{t.ward}<select name="ward" required value={ward} onChange={event => { setWard(event.target.value); setDepartment('') }}>
       <option value="">{t.select}</option>
       {wards?.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
     </select></label>
-    <label>{t.department}<select name="department" key={ward} required>
+    <label>{t.department}<select name="department" key={ward} value={department} onChange={e=>setDepartment(e.target.value)} required>
       <option value="">{t.select}</option>
       {departments?.map(item => <option key={item.code} value={item.code}>{t[item.code] ?? item.name}</option>)}
     </select></label>
-    <label>{t.location}<input name="location" required minLength={2} maxLength={300} /></label>
+    {!!entries.length && <details><summary>{lang==='hi'?'जिम्मेदार कार्यालय':'Responsible offices'}</summary>
+      {entries.map(r=><p key={r.id}>{r.locality || t.ward} · {r.office} · {r.designation} · {r.escalation}</p>)}
+    </details>}
+    <datalist id="registered-localities">{entries.filter(r=>r.locality).map(r=><option key={r.id} value={r.locality}/>)}</datalist>
+    <label>{t.location}<input list="registered-localities" name="location" required minLength={2} maxLength={300} /></label>
     <label>{t.description}<textarea name="description" required maxLength={2000} rows={4} /></label>
     {token && <label>{lang === 'hi' ? 'शिकायत का माध्यम' : 'Intake channel'}
       <select name="channel"><option value="desk">{lang === 'hi' ? 'सहायता केंद्र' : 'Help desk'}</option>
@@ -147,6 +156,28 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token }) {
 }
 
 function Tracking({ lang, catalog }) {
+  const [credentials, setCredentials] = useState({ ticket: '', receipt: '' })
+  async function loadReceipt(event) {
+    const input = event.currentTarget
+    const file = input.files[0]
+    input.value = ''
+    if (!file) return
+    setError('')
+    setMessage('')
+    setResult(null)
+    setAccess(null)
+    setCredentials({ ticket: '', receipt: '' })
+    setBusy(true)
+    try {
+      if (file.size > 8192) throw new Error('invalid_receipt')
+      setCredentials(parseReceipt(await file.text()))
+      setMessage(lang === 'hi' ? 'रसीद भर दी गई है। स्थिति देखें चुनें।' : 'Receipt loaded. Select Check status to continue.')
+    } catch {
+      setError(lang === 'hi' ? 'डाउनलोड की गई शिकायत रसीद चुनें।' : 'Choose a downloaded SmartResolve receipt containing one ticket and private code.')
+    } finally {
+      setBusy(false)
+    }
+  }
   const t = copy[lang]
   const [access, setAccess] = useState(null)
   const [result, setResult] = useState(null)
@@ -173,13 +204,14 @@ function Tracking({ lang, catalog }) {
     }
   }
 
-  async function respond(event) {
+  async function respond(event, appeal=false) {
     event.preventDefault()
     const note = new FormData(event.currentTarget).get('note')
     setError('')
     setBusy(true)
     try {
-      await caseRequest('/respond', { body: { ...access, note, action: result.status === 'resolved' ? 'reopen' : 'reply' } })
+      if (appeal) await caseRequest('/appeal', {body:{...access,reason:note}})
+      else await caseRequest('/respond', { body: { ...access, note, action: result.status === 'resolved' ? 'reopen' : 'reply' } })
       setMessage(t.sent)
       setResult(null)
       setResult(await caseRequest('/lookup', { body: access }))
@@ -191,9 +223,12 @@ function Tracking({ lang, catalog }) {
   }
 
   return <>
+    <label>{lang === 'hi' ? 'डाउनलोड की गई रसीद से भरें' : 'Fill from a downloaded receipt'}
+      <input type="file" accept=".txt,text/plain" onChange={loadReceipt} disabled={busy} />
+    </label>
     <form onSubmit={lookup}>
-      <label>{t.ticket}<input name="ticket" required maxLength={24} autoCapitalize="characters" spellCheck={false} /></label>
-      <label>{t.receipt}<input name="receipt" type="password" required minLength={64} maxLength={64} autoComplete="off" /></label>
+      <label>{t.ticket}<input name="ticket" value={credentials.ticket} onChange={e => setCredentials({...credentials,ticket:e.target.value})} required maxLength={24} autoCapitalize="characters" spellCheck={false} /></label>
+      <label>{t.receipt}<input name="receipt" value={credentials.receipt} onChange={e => setCredentials({...credentials,receipt:e.target.value})} type="password" required minLength={64} maxLength={64} autoComplete="off" /></label>
       <button disabled={busy}>{t.lookup}</button>
     </form>
     {error && <p role="alert">{error}</p>}
@@ -202,6 +237,11 @@ function Tracking({ lang, catalog }) {
       <h3>{result.ticket}</h3>
       <p>{t[result.department] ?? catalog?.departments.find(item => item.code === result.department)?.name ?? result.office}</p>
       {result.status !== 'resolved' && <p>{t.next} · {formatDate(result.next_update_at, lang)}</p>}
+      <RecordDetails record={result} lang={lang}/>
+      {result.target?.appeal_open && !result.appeal && <form onSubmit={e=>respond(e,true)}>
+        <label>{lang==='hi'?'औपचारिक अपील का कारण':'Grounds for formal appeal'}<textarea name="note" required maxLength={2000}/></label>
+        <button disabled={busy}>{lang==='hi'?'अपील दर्ज करें':'File formal appeal'}</button>
+      </form>}
       <h4>{t.timeline}</h4>
       <ol>{result.events.map(item => <li key={item.id}>
         <strong>{t[item.kind]}</strong> · {formatDate(item.created_at, lang)}
@@ -219,6 +259,8 @@ export default function CasePortal() {
   const [lang, setLang] = useState('en')
   const t = copy[lang]
   const catalogState = useCatalog()
+  const [submitting, setSubmitting] = useState(false)
+  const [sessionKey, setSessionKey] = useState(0)
 
   return <main className="case-page" lang={lang}>
     <header className="case-header">
@@ -233,13 +275,16 @@ export default function CasePortal() {
     </header>
     <h1>{t.title}</h1>
     <p>{t.intro}</p>
-    <div className="case-grid">
+    <div className="case-grid" key={sessionKey}>
       <section aria-labelledby="file-case"><h2 id="file-case">{t.file}</h2>
-        <IntakeForm lang={lang} {...catalogState} />
+        <IntakeForm onSaving={setSubmitting} lang={lang} {...catalogState} />
       </section>
       <section aria-labelledby="track-case"><h2 id="track-case">{t.track}</h2>
         <Tracking lang={lang} catalog={catalogState.catalog} />
       </section>
     </div>
+    <button className="case-refresh" type="button" disabled={submitting} onClick={() => setSessionKey(key => key + 1)}>
+      {lang === 'hi' ? 'इस स्क्रीन से मेरा विवरण हटाएँ' : 'Clear my details from this screen'}
+    </button>
   </main>
 }

@@ -60,3 +60,8 @@
 .case-metrics article { border-top: 1px solid #b8cdca; padding-top: .5rem; }
 
 .case-refresh { margin-top: .65rem; }
+
+.field-buttons { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1rem; }
+.incident-tools { margin-block: 1rem; }
+.incident-tools summary { cursor: pointer; padding-block: .7rem; font-weight: 650; }
+.incident-tools form { margin-block: 1rem; }

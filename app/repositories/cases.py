@@ -7,6 +7,7 @@ import os
 from fastapi import HTTPException
 from mysql.connector import IntegrityError
 
+from app.repositories import municipal
 from app.database import get_database_connection
 
 
@@ -34,8 +35,10 @@ def event(cursor, case_id, kind, *, actor=None, note=None, public=False, sms=Fal
         "INSERT INTO case_events (case_id, actor_id, kind, note, public) VALUES (%s,%s,%s,%s,%s)",
         (case_id, actor, kind, note, public),
     )
+    event_id = cursor.lastrowid
     if sms:
-        cursor.execute("INSERT INTO case_sms (event_id) VALUES (%s)", (cursor.lastrowid,))
+        cursor.execute("INSERT INTO case_sms (event_id) VALUES (%s)", (event_id,))
+    return event_id
 
 
 def catalog():
@@ -43,7 +46,7 @@ def catalog():
         cursor.execute("SELECT code, name FROM service_wards ORDER BY name")
         wards = cursor.fetchall()
         cursor.execute("SELECT code, name FROM service_departments ORDER BY name")
-        return {"wards": wards, "departments": cursor.fetchall(), "sms_enabled": sms_enabled()}
+        return {"wards": wards, "departments": cursor.fetchall(), "sms_enabled": sms_enabled(), "register": municipal.directory(cursor)}
 
 
 def sms_enabled():
@@ -85,7 +88,9 @@ def submit(body, *, staff_id=None, channel="web"):
             if existing is None:
                 raise
             return existing
-        event(cursor, cursor.lastrowid, "received", actor=staff_id, public=True, sms=bool(body.sms_phone))
+        case_id = cursor.lastrowid
+        municipal.attach(cursor, case_id, body.ward, body.department, body.location)
+        event(cursor, case_id, "received", actor=staff_id, public=True, sms=bool(body.sms_phone))
         return {"ticket": ticket}
 
 
@@ -128,7 +133,7 @@ def resident_view(access):
         result = {key: row[key] for key in ("ticket", "ward", "department", "status", "next_update_at", "created_at")}
         events = cursor.fetchall()
         cursor.execute("SELECT name FROM service_departments WHERE code=%s", (row["department"],))
-        return {**result, "office": cursor.fetchone()["name"], "events": events}
+        return {**result, "office": cursor.fetchone()["name"], "events": events, **municipal.details(cursor, row)}
 
 
 def resident_action(body):
@@ -189,6 +194,29 @@ def staff_case(cursor, user_id, ticket):
     return row
 
 
+def incident_context(cursor, row):
+    cursor.execute("SELECT incident FROM incident_members WHERE case_id=%s", (row["id"],))
+    membership = cursor.fetchone()
+    cursor.execute("""
+        SELECT c.ticket,c.location,c.created_at FROM service_cases c
+        LEFT JOIN incident_members m ON m.case_id=c.id
+        WHERE c.ward=%s AND c.department=%s AND c.status<>'resolved' AND c.id<>%s
+        AND LOWER(TRIM(c.location))=LOWER(TRIM(%s))
+        AND ABS(TIMESTAMPDIFF(HOUR,c.created_at,%s))<=72
+        AND (m.incident IS NULL OR %s IS NULL OR m.incident<>%s)
+        ORDER BY c.created_at DESC LIMIT 10
+    """, (row["ward"], row["department"], row["id"], row["location"], row["created_at"],
+          membership and membership["incident"], membership and membership["incident"]))
+    matches = cursor.fetchall()
+    members = []
+    if membership:
+        cursor.execute("""SELECT c.ticket,c.status FROM incident_members m JOIN service_cases c ON c.id=m.case_id
+                          WHERE m.incident=%s AND c.ward=%s AND c.department=%s ORDER BY c.id""",
+                       (membership["incident"], row["ward"], row["department"]))
+        members = cursor.fetchall()
+    return {"matches": matches, "members": members}
+
+
 def staff_view(user_id, ticket):
     with transaction() as cursor:
         row = staff_case(cursor, user_id, ticket)
@@ -206,13 +234,17 @@ def staff_view(user_id, ticket):
             (row["ward"], row["department"]),
         )
         officers = cursor.fetchall()
+        row.update(municipal.details(cursor, row))
+        row.update(incident_context(cursor, row))
         for private in ("receipt_hash", "contact_phone"):
             row.pop(private)
         return {**row, "events": events, "officers": officers, "assigned_to_me": row["officer_id"] == user_id}
 
 
 TRANSITIONS = {
-    "assign": ({"received", "assigned"}, "assigned"),
+    "assign": ({"received", "assigned", "in_progress", "needs_information", "reopen_requested"}, None),
+    "visit": ({"assigned", "in_progress"}, "in_progress"),
+    "blocked": ({"assigned", "in_progress"}, "in_progress"),
     "transfer": ({"received", "assigned", "in_progress", "needs_information", "reopen_requested"}, "received"),
     "start": ({"assigned"}, "in_progress"),
     "request_information": ({"assigned", "in_progress"}, "needs_information"),
@@ -223,9 +255,22 @@ TRANSITIONS = {
 }
 
 
+def check_case_version(cursor, case_id, expected):
+    if expected is None:
+        return
+    cursor.execute(
+        """SELECT COALESCE(MAX(id), 0) AS version FROM case_events
+           WHERE case_id=%s AND kind NOT IN ('staff_view','resident_view')""",
+        (case_id,),
+    )
+    if cursor.fetchone()["version"] != expected:
+        raise HTTPException(409, "case_changed")
+
+
 def staff_action(user_id, ticket, body):
     with transaction() as cursor:
         row = staff_case(cursor, user_id, ticket)
+        check_case_version(cursor, row["id"], body.expected_event_id)
         allowed, next_status = TRANSITIONS[body.action]
         if row["status"] not in allowed:
             raise HTTPException(409, "invalid_transition")
@@ -264,7 +309,15 @@ def staff_action(user_id, ticket, body):
             officer = None
 
         status = next_status or row["status"]
+        if body.action == "assign" and status == "received":
+            status = "assigned"
         deadline = now + timedelta(hours=response_hours(cursor, department))
+        if body.action in {"visit", "blocked"}:
+            if not body.next_update_at:
+                raise HTTPException(422, "future_deadline_required")
+            deadline = body.next_update_at.astimezone(timezone.utc).replace(tzinfo=None)
+            if deadline <= now:
+                raise HTTPException(422, "future_deadline_required")
         cursor.execute(
             """UPDATE service_cases SET department=%s, officer_id=%s, status=%s,
                assigned_at=%s, next_update_at=%s, resolved_at=%s, escalated_at=NULL WHERE id=%s""",
@@ -272,9 +325,12 @@ def staff_action(user_id, ticket, body):
              now if status == "resolved" else None, row["id"]),
         )
         if body.action == "transfer":
+            cursor.execute("DELETE FROM incident_members WHERE case_id=%s", (row["id"],))
             event(cursor, row["id"], "routing_changed", actor=user_id, note=f"{row['department']} → {department}")
-        event(cursor, row["id"], body.action, actor=user_id, note=body.note,
+        event_id = event(cursor, row["id"], body.action, actor=user_id, note=body.note,
               public=True, sms=bool(row["contact_phone"]))
+        if body.note and body.compose_seconds is not None:
+            cursor.execute("INSERT INTO case_message_times VALUES (%s,%s)", (event_id, body.compose_seconds))
         return {"status": status}
 
 
@@ -286,6 +342,11 @@ def metrics(user_id):
                       COUNT(CASE WHEN c.officer_id IS NOT NULL AND c.suggestion_state='ready'
                                  AND c.suggested_category=d.name THEN 1 END) AS matching,
 
+                      AVG((SELECT TIMESTAMPDIFF(SECOND,c.created_at,MIN(e.created_at))
+                           FROM case_events e WHERE e.case_id=c.id AND e.actor_id IS NOT NULL AND e.public=1
+                           AND e.kind<>'received')) AS first_action_seconds,
+                      AVG((SELECT AVG(t.seconds_spent) FROM case_events e JOIN case_message_times t ON t.event_id=e.id
+                           WHERE e.case_id=c.id)) AS compose_seconds,
                       SUM(c.status='resolved') AS resolved,
                       SUM(c.status<>'resolved' AND c.next_update_at<UTC_TIMESTAMP()) AS overdue,
                       AVG(TIMESTAMPDIFF(MINUTE,c.created_at,c.assigned_at)) AS avg_assignment_minutes,

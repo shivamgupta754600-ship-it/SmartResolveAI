@@ -98,6 +98,11 @@ def main():
         with transaction() as cursor:
             cursor.execute(
                 """DELETE FROM service_cases WHERE status='resolved'
+                   AND NOT EXISTS (SELECT 1 FROM service_appeals a WHERE a.case_id=service_cases.id AND a.decided_at IS NULL)
+                   AND NOT EXISTS (SELECT 1 FROM authority_referrals f WHERE f.case_id=service_cases.id AND f.acknowledged_at IS NULL)
+                   AND NOT EXISTS (SELECT 1 FROM case_targets t JOIN responsibility_rules r ON r.id=t.rule_id
+                       WHERE t.case_id=service_cases.id AND r.scheme IS NOT NULL
+                       AND DATE_ADD(service_cases.resolved_at, INTERVAL r.appeal_days DAY)>=UTC_TIMESTAMP())
                    AND resolved_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL %s DAY)
                    ORDER BY resolved_at LIMIT 500""", (args.purge_resolved_days,),
             )

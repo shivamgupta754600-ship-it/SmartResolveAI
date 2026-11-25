@@ -373,3 +373,41 @@ and outbox row counts. For an isolated restore drill on the same MySQL instance,
 add `--set-gtid-purged=OFF` to the dump. Repeat a receipt lookup and staff queue check in the restored
 environment with SMS disabled. Record the recovery time and confirm the agency can
 meet its recovery requirements before launch.
+
+### Daily work, incident reports and field visits
+
+For existing pilot databases, reapply `db/cases.sql` to add incident membership
+and optional message drafting times. My work today orders tickets by update deadline.
+Due today uses India time. The supervisor filter includes open cases with no owner,
+a missed deadline, two or more transfers, or a reopening request.
+
+Officers can open a ticket's field view to record a visit or blocker with a public
+message and a future update time. They can edit a Hindi or English template before
+posting. Supervisor metrics include time to first public staff action and an estimate
+of drafting time measured from message focus or template selection through submission.
+
+Related reports suggests open cases in the same ward and service with a matching
+landmark within 72 hours. Staff confirm a ticket before linking. Shared updates
+appear on each open linked ticket in the resident's chosen language. Existing
+ownership permissions apply to every affected ticket. Transferring a case removes
+its incident membership.
+
+### Municipal office records
+
+Reapply `db/cases.sql` before enabling office records. In the supervisor workspace,
+open **Ward review and service register** to verify the office, designation,
+escalation contact and elapsed-hour resolution target for a ward/service. Add a
+named landmark for an asset-specific rule. Filing matches the exact locality or
+the ward default. Rules are versioned and each matching new case keeps its original
+target through transfers. Earlier and unmatched cases show no configured target.
+
+Configure a formal first appeal only for services whose verified local rule fits
+the supported calendar: elapsed hours for resolution and calendar days to file from
+closure or expiry of the original target, whichever occurs first. Reviewers must be
+active supervisors in the configured unit. Working-day calendars, higher appeal
+levels and external filing systems require agency-specific implementation.
+
+Staff can record external referrals and manual acknowledgements, revise a resolution
+estimate with a public reason, and review and publish a printable Action Taken Report.
+These records appear in resident receipt tracking. The weekly sheet is a printable
+live list, oldest first, for the signed-in supervisor's jurisdictions.
