@@ -26,6 +26,7 @@ const copy = {
     receipt: 'Private receipt code', download: 'Download receipt', lookup: 'Check status',
     next: 'Next update due', timeline: 'Case timeline', reply: 'Send requested details', reopen: 'Request reopening',
     note: 'Details for the office', error: 'The request could not be completed. Please try again.',
+    location_not_served: 'This service has no configured intake office in the selected state or union territory.',
     case_not_found: 'Check your ticket number and private receipt code.',
     photo_too_large: 'Choose a photo up to 5 MB and 24 megapixels.',
     sms_requires_verified_phone: 'SMS updates require a verified contact number. Clear the SMS option to file.',
@@ -54,6 +55,7 @@ const copy = {
     next: 'अगली सूचना की समय सीमा', timeline: 'कार्रवाई का विवरण', reply: 'माँगी गई जानकारी भेजें',
     reopen: 'फिर से खोलने का अनुरोध करें', note: 'कार्यालय के लिए जानकारी',
     error: 'अनुरोध पूरा नहीं हो सका। कृपया फिर कोशिश करें।',
+    location_not_served: 'चुने गए राज्य या केंद्र शासित प्रदेश में इस सेवा के लिए शिकायत कार्यालय उपलब्ध नहीं है।',
     case_not_found: 'अपनी शिकायत संख्या और निजी रसीद कोड जाँचें।',
     photo_too_large: '5 एमबी और 24 मेगापिक्सेल तक की फ़ोटो चुनें।',
     sms_requires_verified_phone: 'एसएमएस के लिए सत्यापित नंबर चाहिए। शिकायत दर्ज करने के लिए एसएमएस विकल्प हटाएँ।',
@@ -105,7 +107,7 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token, onSaving
   const entries = (catalog?.register || []).filter(r => r.ward===ward && r.department===department)
   const allowed = scope?.filter(item => item.role === 'intake' || item.role === 'supervisor')
   const wards = catalog?.wards.filter(item => !allowed || allowed.some(r => r.ward === item.code))
-  const departments = catalog?.departments.filter(item => !allowed || allowed.some(r => r.ward === ward && r.department === item.code))
+  const departments = catalog?.departments.filter(item => !allowed || allowed.some(r => (ward === 'india_intake' || r.ward === ward) && r.department === item.code))
 
   async function submit(event) {
     event.preventDefault()
@@ -114,6 +116,14 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token, onSaving
     onSaving?.(true)
     const data = Object.fromEntries(new FormData(event.currentTarget))
     if (data.sms_phone === '') delete data.sms_phone
+    if (data.ward === 'india_intake') {
+      data.geography = Object.fromEntries(
+        ['state','district','subdistrict','settlement_type','settlement','local_area']
+          .map(name => [name, String(data[name]).trim()])
+          .filter(([,value]) => value)
+      )
+      for (const name of ['state','district','subdistrict','settlement_type','settlement','local_area']) delete data[name]
+    }
     const file = data.photo
     delete data.photo
     const body = { ...data, language: lang }
@@ -161,10 +171,27 @@ export function IntakeForm({ catalog, catalogError, lang, scope, token, onSaving
   return <form onSubmit={submit}>
     <p>{t.privacy}</p>
     {catalogError && <p role="alert">{t.catalog_error}</p>}
-    <label>{t.ward}<select name="ward" required value={ward} onChange={event => { setWard(event.target.value); setDepartment('') }}>
+    <label>{lang==='hi'?'शिकायत का क्षेत्र':'Complaint area'}<select name="ward" required value={ward} onChange={event => { setWard(event.target.value); setDepartment('') }}>
       <option value="">{t.select}</option>
+      {catalog?.states?.length > 0 && <option value="india_intake">{lang==='hi'?'राज्य या केंद्र शासित प्रदेश से खोजें':'Choose by state or union territory'}</option>}
       {wards?.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
     </select></label>
+    {ward === 'india_intake' && <fieldset className="india-location">
+      <legend>{lang==='hi'?'भारत में शिकायत का स्थान':'Complaint location in India'}</legend>
+      <label>{lang==='hi'?'राज्य या केंद्र शासित प्रदेश':'State or union territory'}
+        <select name="state" required><option value="">{t.select}</option>
+          {catalog.states.map(state=><option key={state}>{state}</option>)}
+        </select>
+      </label>
+      <label>{lang==='hi'?'ज़िला':'District'}<input name="district" required maxLength={120}/></label>
+      <label>{lang==='hi'?'तहसील / तालुका / उपज़िला':'Tehsil, taluka or subdivision (if known)'}<input name="subdistrict" maxLength={120}/></label>
+      <label>{lang==='hi'?'क्षेत्र का प्रकार':'Settlement type'}<select name="settlement_type" required>
+        <option value="">{t.select}</option><option value="village">{lang==='hi'?'गाँव':'Village'}</option>
+        <option value="town">{lang==='hi'?'कस्बा':'Town'}</option><option value="city">{lang==='hi'?'शहर':'City'}</option>
+      </select></label>
+      <label>{lang==='hi'?'गाँव, कस्बे या शहर का नाम':'Village, town or city name'}<input name="settlement" required maxLength={120}/></label>
+      <label>{lang==='hi'?'ग्राम पंचायत या वार्ड':'Gram panchayat or ward (if known)'}<input name="local_area" maxLength={120}/></label>
+    </fieldset>}
     <label>{t.department}<select name="department" key={ward} value={department} onChange={e=>setDepartment(e.target.value)} required>
       <option value="">{t.select}</option>
       {departments?.map(item => <option key={item.code} value={item.code}>{t[item.code] ?? item.name}</option>)}

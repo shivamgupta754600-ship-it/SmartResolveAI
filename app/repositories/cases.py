@@ -3,11 +3,13 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from secrets import token_hex
+import json
 import os
 
 from fastapi import HTTPException
 from mysql.connector import IntegrityError
 
+from app.schemas.india import STATES
 from app.repositories import municipal, residents
 from app.services.evidence import prepare_photo
 from app.database import get_database_connection
@@ -48,7 +50,7 @@ def catalog():
         cursor.execute("SELECT code, name FROM service_wards ORDER BY name")
         wards = cursor.fetchall()
         cursor.execute("SELECT code, name FROM service_departments ORDER BY name")
-        return {"wards": wards, "departments": cursor.fetchall(), "sms_enabled": sms_enabled(), "register": municipal.directory(cursor)}
+        return {"states": STATES, "wards": wards, "departments": cursor.fetchall(), "sms_enabled": sms_enabled(), "register": municipal.directory(cursor)}
 
 
 def sms_enabled():
@@ -60,6 +62,20 @@ def submit(body, *, resident_id=None, staff_id=None, channel="web"):
     digest = sha256(body.receipt.encode()).digest()
     ticket = "SR-" + token_hex(11).upper()[:21]
     with transaction() as cursor:
+        if body.geography is not None:
+            cursor.execute(
+                """SELECT r.ward FROM india_intake_routes r
+                   WHERE r.state_name=%s AND r.department=%s AND EXISTS (
+                       SELECT 1 FROM case_staff s JOIN users u ON u.id=s.user_id AND u.is_active
+                       WHERE s.ward=r.ward AND s.department=r.department
+                       AND s.role IN ('supervisor','officer')
+                   )""",
+                (body.geography.state, body.department),
+            )
+            routing = cursor.fetchone()
+            if not routing:
+                raise HTTPException(422, "location_not_served")
+            body = body.model_copy(update={"ward": routing["ward"]})
         if staff_id:
             require_role(cursor, staff_id, body.ward, body.department, ("intake", "supervisor"))
         cursor.execute("SELECT ticket FROM service_cases WHERE receipt_hash=%s", (digest,))
@@ -100,6 +116,9 @@ def submit(body, *, resident_id=None, staff_id=None, channel="web"):
             return existing
         case_id = cursor.lastrowid
         cursor.execute("INSERT INTO case_residents(case_id,user_id) VALUES (%s,%s)", (case_id,resident_id))
+        if body.geography is not None:
+            cursor.execute("INSERT INTO case_geography(case_id, details) VALUES (%s,%s)",
+                           (case_id, body.geography.model_dump_json()))
         if photo is not None:
             cursor.execute("INSERT INTO case_photos (case_id, jpeg) VALUES (%s,%s)", (case_id, photo))
         municipal.attach(cursor, case_id, body.ward, body.department, body.location)
@@ -284,6 +303,9 @@ def staff_view(user_id, ticket):
         cursor.execute("""SELECT u.full_name,u.phone FROM case_residents r JOIN users u ON u.id=r.user_id
                           WHERE r.case_id=%s""", (row["id"],))
         row["resident_contact"] = cursor.fetchone()
+        cursor.execute("SELECT details FROM case_geography WHERE case_id=%s", (row["id"],))
+        geography = cursor.fetchone()
+        row["geography"] = json.loads(geography["details"]) if geography else None
         row.update(municipal.details(cursor, row))
         row["has_photo"] = has_photo(cursor, row["id"])
         row.update(incident_context(cursor, row))

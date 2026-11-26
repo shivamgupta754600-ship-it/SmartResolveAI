@@ -69,6 +69,10 @@ function CaseDetail({ selected, token, scope, catalog, onAction, onIncident, bus
     <p><strong>{statusLabels[selected.status]}</strong> · {selected.ward} · {selected.department}</p>
     <p>Reported by {selected.channel === 'web' ? 'web' : selected.channel === 'desk' ? 'help desk' : 'phone'} · {selected.language === 'hi' ? 'Hindi' : 'English'}</p>
     {selected.resident_contact && <p><strong>Resident contact</strong> · {selected.resident_contact.full_name} · <a href={'tel:+91'+selected.resident_contact.phone?.slice(-10)}>{selected.resident_contact.phone}</a></p>}
+    {selected.geography && <p dir="auto"><strong>Administrative area</strong> · {[
+      selected.geography.local_area, selected.geography.settlement, selected.geography.subdistrict,
+      selected.geography.district, selected.geography.state,
+    ].filter(Boolean).join(' / ')}</p>}
     <p><strong>Location</strong> · <span dir="auto">{selected.location}</span></p>
     <p dir="auto">{selected.description}</p>
     {selected.status !== 'resolved' && <p>Next update due · {formatDate(selected.next_update_at)}</p>}

@@ -150,8 +150,8 @@ body:has(.case-page), body:has(.auth-page) { background: #f7f5ef; }
 .portal-header { min-height: 4.7rem; }
 .portal-mark { background: #183237; color: #f5ce89; border-radius: .45rem .45rem .8rem .8rem; }
 .civic-home { max-width: none; padding: 0; }
-.civic-home .portal-header, .service-index, .service-panels, .civic-home .portal-footer, .civic-hero-inner {
-  width: min(78rem, calc(100% - 2 * clamp(1.2rem,5vw,5rem))); margin-inline: auto;
+.civic-home .portal-header, .service-index, .service-panels, .civic-home .portal-footer, .civic-hero-inner, .civic-home .complaint-story {
+  margin-inline: clamp(1rem, 2.5%, 3rem);
 }
 .civic-home .portal-header { border: 0; margin-bottom: 0; }
 .case-page .portal-header .account-nav { background: #183237; color: #fff; padding: .55rem 1rem; border-radius: .35rem; text-decoration: none; }
@@ -220,7 +220,7 @@ body:has(.case-page), body:has(.auth-page) { background: #f7f5ef; }
 .desk-panels .case-metrics { margin:0; }
 
 .civic-home .complaint-story {
-  width: min(78rem, calc(100% - 2 * clamp(1.2rem,5vw,5rem))); margin: 2rem auto;
+  margin-block: 2rem;
   padding: 0; border: 0; background: transparent; box-shadow: none;
 }
 .complaint-story h2 { font: 500 clamp(1.85rem,3vw,2.65rem)/1.2 Georgia,serif; }
@@ -234,3 +234,6 @@ body:has(.case-page), body:has(.auth-page) { background: #f7f5ef; }
   .complaint-story img { aspect-ratio: 1; }
   .complaint-story figcaption h3 { margin-top: 0; font-size: 1.2rem; }
 }
+
+.india-location { display: grid; gap: .85rem; min-width: 0; padding: .85rem; border: 1px solid #bfcfc3; border-radius: .55rem; }
+.india-location legend { font-weight: 650; padding-inline: .35rem; }

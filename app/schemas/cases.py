@@ -2,6 +2,8 @@ from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from app.schemas.india import IndiaLocation
+
 Code = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_-]{1,32}$")]
 Receipt = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
 Note = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
@@ -14,6 +16,7 @@ class CaseInput(BaseModel):
     ward: Code
     department: Code
     photo: str | None = Field(default=None, min_length=1, max_length=6990508, repr=False)
+    geography: IndiaLocation | None = None
     description: Note
     location: Annotated[str, StringConstraints(min_length=2, max_length=300)]
     language: Literal["en", "hi"] = "en"

@@ -202,3 +202,18 @@ CREATE TABLE IF NOT EXISTS account_recovery_log (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS india_intake_routes (
+    state_name VARCHAR(80) NOT NULL,
+    department VARCHAR(32) NOT NULL,
+    ward VARCHAR(32) NOT NULL,
+    PRIMARY KEY (state_name, department),
+    FOREIGN KEY (department) REFERENCES service_departments(code),
+    FOREIGN KEY (ward) REFERENCES service_wards(code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS case_geography (
+    case_id BIGINT PRIMARY KEY,
+    details JSON NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES service_cases(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
