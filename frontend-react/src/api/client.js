@@ -4,16 +4,19 @@ const TOKEN_KEY   = 'sr_access_token'
 const REFRESH_KEY = 'sr_refresh_token'
 const USER_KEY    = 'sr_user'
 
+// Remove credentials cached by earlier versions on shared devices.
+for (const key of [TOKEN_KEY, REFRESH_KEY, USER_KEY]) localStorage.removeItem(key)
+
 // ── Token / session helpers ──────────────────────────────────────────
 export const session = {
-  getToken    : ()      => localStorage.getItem(TOKEN_KEY),
-  setToken    : (t)     => localStorage.setItem(TOKEN_KEY, t),
-  getRefresh  : ()      => localStorage.getItem(REFRESH_KEY),
-  setRefresh  : (t)     => localStorage.setItem(REFRESH_KEY, t),
-  getUser     : ()      => { try { return JSON.parse(localStorage.getItem(USER_KEY)) } catch { return null } },
-  setUser     : (u)     => localStorage.setItem(USER_KEY, JSON.stringify(u)),
-  clear       : ()      => [TOKEN_KEY, REFRESH_KEY, USER_KEY].forEach(k => localStorage.removeItem(k)),
-  isLoggedIn  : ()      => !!localStorage.getItem(TOKEN_KEY),
+  getToken    : ()      => sessionStorage.getItem(TOKEN_KEY),
+  setToken    : (t)     => sessionStorage.setItem(TOKEN_KEY, t),
+  getRefresh  : ()      => sessionStorage.getItem(REFRESH_KEY),
+  setRefresh  : (t)     => sessionStorage.setItem(REFRESH_KEY, t),
+  getUser     : ()      => { try { return JSON.parse(sessionStorage.getItem(USER_KEY)) } catch { return null } },
+  setUser     : (u)     => sessionStorage.setItem(USER_KEY, JSON.stringify(u)),
+  clear       : ()      => [TOKEN_KEY, REFRESH_KEY, USER_KEY].forEach(k => sessionStorage.removeItem(k)),
+  isLoggedIn  : ()      => !!sessionStorage.getItem(TOKEN_KEY),
 }
 
 // ── Silent token refresh ─────────────────────────────────────────────
@@ -34,7 +37,7 @@ async function tryRefresh() {
 }
 
 // ── Core request function ────────────────────────────────────────────
-async function request(endpoint, options = {}, _retried = false) {
+export async function request(endpoint, options = {}, _retried = false) {
   const token = session.getToken()
   const headers = {
     'Content-Type': 'application/json',
@@ -49,7 +52,7 @@ async function request(endpoint, options = {}, _retried = false) {
     const ok = await tryRefresh()
     if (!ok) {
       session.clear()
-      window.location.href = '/login'
+      window.location.href = endpoint.startsWith('/cases') ? '/login?resident=1' : '/login'
       throw new Error('Your session expired. Please sign in again.')
     }
     return request(endpoint, options, true)
@@ -64,6 +67,13 @@ async function request(endpoint, options = {}, _retried = false) {
 }
 
 // ── API surface ──────────────────────────────────────────────────────
+export function revokeSession(token) {
+  if (!token) return Promise.resolve()
+  return fetch(`${API_BASE}/auth/logout`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true,
+  }).catch(() => {})
+}
+
 export const api = {
   auth: {
     login          : (username, password) =>

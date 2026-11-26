@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { api, session } from '../api/client'
+import { api, session, revokeSession } from '../api/client'
 
 const AuthContext = createContext(null)
 
@@ -27,6 +27,7 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    void revokeSession(session.getRefresh() || session.getToken())
     session.clear()
     setUser(null)
   }

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartResolve AI — Login</title>
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <style>
+    body { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .auth-wrapper { width: 100%; max-width: 440px; }
+    .auth-hero { text-align: center; margin-bottom: 2rem; color: white; }
+    .auth-hero .logo-icon { font-size: 3rem; margin-bottom: .75rem; display: block; }
+    .auth-hero h1 { font-size: 1.75rem; font-weight: 800; letter-spacing: -.5px; }
+    .auth-hero p { opacity: .8; margin-top: .4rem; font-size: .95rem; }
+    .auth-card { background: white; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); padding: 2rem; }
+    .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 1.75rem; }
+    .tab-btn { flex: 1; padding: .625rem; border: none; background: none; cursor: pointer; font-size: .9rem; font-weight: 600; color: var(--text-muted); transition: var(--transition); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .divider { text-align: center; margin: 1rem 0; color: var(--text-light); font-size: .8rem; position: relative; }
+    .divider::before, .divider::after { content: ''; position: absolute; top: 50%; width: 42%; height: 1px; background: var(--border); }
+    .divider::before { left: 0; } .divider::after { right: 0; }
+    .footer-note { text-align: center; margin-top: 1.5rem; font-size: .8rem; color: var(--text-muted); }
+    .footer-note strong { color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<div class="auth-wrapper">
+  <div class="auth-hero">
+    <span class="logo-icon">🏛️</span>
+    <h1>SmartResolve AI</h1>
+    <p>AI-powered citizen grievance routing</p>
+  </div>
+
+  <div class="auth-card">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="login">Sign In</button>
+      <button class="tab-btn" data-tab="register">Create Account</button>
+    </div>
+
+    <!-- ===== LOGIN PANEL ===== -->
+    <div id="tab-login" class="tab-panel active">
+      <div id="login-alert" class="alert alert-error hidden mb-2"></div>
+
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="login-username">Username <span>*</span></label>
+          <input class="form-control" id="login-username" type="text" placeholder="your_username" autocomplete="username" />
+          <div class="form-error" id="login-username-err"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-password">Password <span>*</span></label>
+          <input class="form-control" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" />
+          <div class="form-error" id="login-password-err"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg mt-2" id="login-btn">
+          Sign In
+        </button>
+      </form>
+    </div>
+
+    <!-- ===== REGISTER PANEL ===== -->
+    <div id="tab-register" class="tab-panel">
+      <div id="reg-alert" class="alert alert-error hidden mb-2"></div>
+
+      <form id="reg-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="reg-fullname">Full Name</label>
+          <input class="form-control" id="reg-fullname" type="text" placeholder="Ramesh Kumar" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-username">Username <span>*</span></label>
+          <input class="form-control" id="reg-username" type="text" placeholder="ramesh_123" autocomplete="username" />
+          <div class="form-hint">Letters, numbers, underscores. 3–50 chars.</div>
+          <div class="form-error" id="reg-username-err"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-email">Email <span>*</span></label>
+          <input class="form-control" id="reg-email" type="email" placeholder="ramesh@example.com" autocomplete="email" />
+          <div class="form-error" id="reg-email-err"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-password">Password <span>*</span></label>
+          <input class="form-control" id="reg-password" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number" autocomplete="new-password" />
+          <div class="form-error" id="reg-password-err"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg mt-2" id="reg-btn">
+          Create Account
+        </button>
+      </form>
+    </div>
+
+    <div class="footer-note">
+      <strong>⚠️ Demo / Student project.</strong><br>
+      Not an official government service.
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script type="module">
+  import { login, register, fetchMe, isLoggedIn, showToast } from './assets/js/api.js';
+
+  // If already logged in, redirect
+  if (isLoggedIn()) {
+    window.location.href = 'dashboard.html';
+  }
+
+  // ---- Tab switching ----
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn, .tab-panel').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---- Helpers ----
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('visible');
+    el.previousElementSibling?.classList?.add?.('error');
+  }
+  function clearErrors(prefix) {
+    document.querySelectorAll(`[id^="${prefix}"][id$="-err"]`).forEach(el => {
+      el.textContent = ''; el.classList.remove('visible');
+      el.previousElementSibling?.classList?.remove?.('error');
+    });
+  }
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    btn.textContent = loading ? 'Please wait…' : (btnId === 'login-btn' ? 'Sign In' : 'Create Account');
+  }
+
+  // ---- LOGIN ----
+  document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    clearErrors('login');
+    document.getElementById('login-alert').classList.add('hidden');
+
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+
+    if (!username) return showError('login-username-err', 'Username is required.');
+    if (!password) return showError('login-password-err', 'Password is required.');
+
+    setLoading('login-btn', true);
+    try {
+      await login(username, password);
+      await fetchMe();
+      showToast('Login successful! Redirecting…', 'success');
+      setTimeout(() => window.location.href = 'dashboard.html', 800);
+    } catch (err) {
+      const alert = document.getElementById('login-alert');
+      alert.textContent = err.message || 'Login failed. Please check your credentials.';
+      alert.classList.remove('hidden');
+    } finally {
+      setLoading('login-btn', false);
+    }
+  });
+
+  // ---- REGISTER ----
+  document.getElementById('reg-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    clearErrors('reg');
+    document.getElementById('reg-alert').classList.add('hidden');
+
+    const fullName = document.getElementById('reg-fullname').value.trim();
+    const username = document.getElementById('reg-username').value.trim();
+    const email    = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+
+    let valid = true;
+    if (!username) { showError('reg-username-err', 'Username is required.'); valid = false; }
+    if (!email)    { showError('reg-email-err', 'Email is required.'); valid = false; }
+    if (!password) { showError('reg-password-err', 'Password is required.'); valid = false; }
+    if (!valid) return;
+
+    setLoading('reg-btn', true);
+    try {
+      await register(username, email, password, fullName);
+      showToast('Account created! Please sign in.', 'success');
+      // Switch to login tab
+      document.querySelectorAll('.tab-btn, .tab-panel').forEach(el => el.classList.remove('active'));
+      document.querySelector('[data-tab="login"]').classList.add('active');
+      document.getElementById('tab-login').classList.add('active');
+      document.getElementById('login-username').value = username;
+    } catch (err) {
+      const detail = err.message || 'Registration failed.';
+      const alert = document.getElementById('reg-alert');
+      alert.textContent = detail;
+      alert.classList.remove('hidden');
+    } finally {
+      setLoading('reg-btn', false);
+    }
+  });
+</script>
+</body>
+</html>

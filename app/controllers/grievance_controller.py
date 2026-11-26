@@ -29,10 +29,10 @@ def handle_grievance_prediction(
         raise HTTPException(status_code=400, detail=str(error))
 
     except RuntimeError as error:
-        raise HTTPException(status_code=503, detail=str(error))
+        raise HTTPException(status_code=503, detail="The grievance service is temporarily unavailable.")
 
     except Exception as error:
-        print("Unexpected prediction error:", error)
+        print("Unexpected prediction error:", type(error).__name__)
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
 
 
@@ -40,21 +40,21 @@ def handle_get_history(user_id: int) -> list:
     try:
         return get_predictions_by_user(user_id)
     except Exception as error:
-        raise HTTPException(status_code=503, detail=str(error))
+        raise HTTPException(status_code=503, detail="The grievance service is temporarily unavailable.")
 
 
 def handle_get_all_predictions() -> list:
     try:
         return get_all_predictions()
     except Exception as error:
-        raise HTTPException(status_code=503, detail=str(error))
+        raise HTTPException(status_code=503, detail="The grievance service is temporarily unavailable.")
 
 
 def handle_get_review_queue() -> list:
     try:
         return get_predictions_needing_review()
     except Exception as error:
-        raise HTTPException(status_code=503, detail=str(error))
+        raise HTTPException(status_code=503, detail="The grievance service is temporarily unavailable.")
 
 
 def handle_review_prediction(
@@ -75,4 +75,4 @@ def handle_review_prediction(
     except HTTPException:
         raise
     except Exception as error:
-        raise HTTPException(status_code=503, detail=str(error))
+        raise HTTPException(status_code=503, detail="The grievance service is temporarily unavailable.")

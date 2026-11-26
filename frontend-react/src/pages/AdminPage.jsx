@@ -60,7 +60,7 @@ export default function AdminPage() {
 
   async function handleReview(id, status, notes) {
     try {
-      await api.grievances.review(id, { review_status: status, review_notes: notes })
+      await api.grievances.review(id, status, notes)
       showToast(`Grievance ${status === 'approved' ? 'approved' : 'rejected'} successfully.`, 'success')
       setSelected(null)
       loadData()

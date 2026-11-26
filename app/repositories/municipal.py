@@ -99,9 +99,9 @@ def change(user, ticket, operation, body):
         return {"saved": True}
 
 
-def file_appeal(body):
+def file_appeal(body, owner_id=None):
     with cases.transaction() as cur:
-        row = cases.resident_case(cur, body)
+        row = cases.resident_case(cur, body, owner_id)
         record = details(cur, row)
         if record["appeal"] or not (record["target"] or {}).get("appeal_open"):
             raise HTTPException(409, "Appeal unavailable")

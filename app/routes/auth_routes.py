@@ -5,16 +5,21 @@ Exposes: POST /auth/register, POST /auth/login, POST /auth/refresh, GET /auth/me
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
+from app.core.config import settings
+from app.services import phone_verification
+from app.schemas.auth import OTPCheck, OTPRequest, VerifiedNumber
 from app.controllers.auth_controller import (
     handle_login,
     handle_refresh,
     handle_register,
     handle_update_profile,
 )
-from app.core.dependencies import get_current_user
+from app.core.security import decode_token
+from app.repositories import sessions
+from app.core.dependencies import get_current_user, oauth2_scheme
 from app.middleware.rate_limiter import limiter
 from app.schemas.auth import (
     RefreshTokenRequest,
@@ -58,7 +63,8 @@ def login(request: Request, body: UserLoginRequest):
 # POST /auth/token  (OAuth2 form-data — powers Swagger Authorize button)
 # ------------------------------------------------------------------
 @router.post("/token", response_model=TokenResponse, include_in_schema=False)
-def token_form(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("10/minute")
+def token_form(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """OAuth2 password flow for Swagger UI."""
     return handle_login(UserLoginRequest(
         username=form_data.username,
@@ -107,6 +113,9 @@ def update_profile(
     current_user: dict = Depends(get_current_user),
 ):
     """Update the authenticated user's profile fields."""
+    if body.phone is not None and body.phone != current_user.get("phone"):
+        raise HTTPException(409, "Verify a new mobile number in the resident portal.")
+    body = body.model_copy(update={"phone": None})
     updated = handle_update_profile(current_user["id"], body)
     has_address = bool(updated.get("city") or updated.get("address"))
     has_phone = bool(updated.get("phone"))
@@ -123,3 +132,44 @@ def update_profile(
         "pincode": updated.get("pincode"),
         "profile_complete": has_address and has_phone,
     }
+
+@router.get("/registration-settings")
+def registration_settings(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return {"verification_required": settings.PHONE_VERIFICATION_REQUIRED}
+
+
+def require_verification_enabled():
+    if not settings.PHONE_VERIFICATION_REQUIRED:
+        raise HTTPException(404, "Mobile verification is currently disabled.")
+
+
+@router.post("/otp/request", dependencies=[Depends(require_verification_enabled)])
+@limiter.limit("5/minute")
+def request_registration_code(request: Request, body: OTPRequest):
+    return phone_verification.issue(body)
+
+
+@router.post("/phone/request", dependencies=[Depends(require_verification_enabled)])
+@limiter.limit("5/minute")
+def request_phone_change(request: Request, body: OTPRequest, user: dict = Depends(get_current_user)):
+    return phone_verification.issue(body, user["id"])
+
+
+@router.post("/otp/verify", dependencies=[Depends(require_verification_enabled)])
+@limiter.limit("15/minute")
+def verify_code(request: Request, response: Response, body: OTPCheck):
+    response.headers["Cache-Control"] = "no-store"
+    return phone_verification.verify(body)
+
+
+@router.post("/phone/confirm", dependencies=[Depends(require_verification_enabled)])
+def confirm_phone(body: VerifiedNumber, user: dict = Depends(get_current_user)):
+    return phone_verification.change_phone(body, user["id"])
+
+@router.post("/logout", status_code=204)
+def logout(token: str = Depends(oauth2_scheme)):
+    claims = decode_token(token)
+    if claims and claims.get("sid"):
+        sessions.revoke(claims["sid"])
+    return Response(status_code=204)

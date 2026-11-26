@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.security import decode_token
+from app.repositories import sessions
 from app.repositories.user import get_user_by_username
 
 # tokenUrl just tells Swagger where the login form is; the actual
@@ -38,7 +39,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         raise credentials_exception
 
     user = get_user_by_username(username)
-    if user is None:
+    if user is None or not sessions.active(user["id"], payload.get("sid")):
         raise credentials_exception
 
     if not user.get("is_active", False):

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartResolve AI — Admin Panel</title>
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; box-shadow: var(--shadow-sm); }
+    .stat-card .stat-label { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+    .stat-card .stat-value { font-size: 2rem; font-weight: 800; color: var(--primary); line-height: 1.2; margin-top: .25rem; }
+    .stat-card .stat-sub   { font-size: .78rem; color: var(--text-muted); margin-top: .15rem; }
+    .filter-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center; }
+    .filter-btn { padding: .4rem .9rem; border: 1.5px solid var(--border); border-radius: 999px; background: white; cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--text-muted); transition: var(--transition); }
+    .filter-btn.active { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .review-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .review-modal-box { background: white; border-radius: var(--radius-xl); padding: 2rem; max-width: 540px; width: 100%; box-shadow: var(--shadow-lg); }
+    .review-modal-box h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 1rem; }
+    .grievance-preview { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .875rem; font-size: .9rem; margin-bottom: 1rem; max-height: 120px; overflow-y: auto; }
+    .review-actions { display: flex; gap: .75rem; margin-top: 1.25rem; justify-content: flex-end; }
+    .truncate-sm { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .admin-badge { display: inline-flex; align-items: center; gap: .3rem; background: #fef9c3; color: #854d0e; border-radius: 999px; padding: .2rem .7rem; font-size: .75rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a href="dashboard.html" class="topnav-brand">
+    <span class="logo">🏛️</span>
+    <span>SmartResolve AI</span>
+  </a>
+  <div class="topnav-actions">
+    <span class="admin-badge">⚙️ Admin Panel</span>
+    <span class="topnav-user" id="nav-user"></span>
+    <a href="dashboard.html" class="btn btn-ghost btn-sm">← Dashboard</a>
+    <button class="btn btn-ghost btn-sm" id="logout-btn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page-container">
+  <div class="page-header">
+    <h1>Admin Review Panel</h1>
+    <p>Review AI-flagged grievances and manage routing decisions.</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub">all submissions</div></div>
+    <div class="stat-card"><div class="stat-label">Needs Review</div><div class="stat-value" id="stat-review" style="color:var(--warning);">—</div><div class="stat-sub">low confidence</div></div>
+    <div class="stat-card"><div class="stat-label">Approved</div><div class="stat-value" id="stat-approved" style="color:var(--success);">—</div><div class="stat-sub">reviewed &amp; routed</div></div>
+    <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" id="stat-pending" style="color:var(--danger);">—</div><div class="stat-sub">awaiting review</div></div>
+  </div>
+
+  <!-- FILTER ROW -->
+  <div class="filter-row">
+    <span style="font-size:.85rem;font-weight:600;color:var(--text-muted);">Filter:</span>
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="needs_review">Needs Review</button>
+    <button class="filter-btn" data-filter="pending">Pending</button>
+    <button class="filter-btn" data-filter="approved">Approved</button>
+    <button class="filter-btn" data-filter="rejected">Rejected</button>
+    <button class="btn btn-ghost btn-sm" id="refresh-btn" style="margin-left:auto;">↻ Refresh</button>
+  </div>
+
+  <!-- TABLE -->
+  <div id="table-loading" class="text-center text-muted" style="padding:3rem;">
+    <div class="spinner" style="margin:0 auto 1rem;"></div>Loading…
+  </div>
+  <div id="table-empty" class="empty-state hidden">
+    <div style="font-size:2rem;margin-bottom:.75rem;">📭</div>
+    <p>No predictions match the current filter.</p>
+  </div>
+  <div id="table-wrap" class="table-wrap hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Grievance</th>
+          <th>Category</th>
+          <th>Confidence</th>
+          <th>Submitted by</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div id="review-modal" class="review-modal hidden">
+  <div class="review-modal-box">
+    <h3>📋 Review Grievance #<span id="modal-id"></span></h3>
+    <div class="grievance-preview" id="modal-text"></div>
+    <div style="margin-bottom:.75rem;">
+      <span style="font-weight:700;">Predicted:</span>
+      <span class="badge badge-primary" id="modal-category" style="margin-left:.5rem;"></span>
+      &nbsp;
+      <span style="font-weight:700;">Confidence:</span>
+      <span id="modal-confidence" style="font-weight:700;"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="review-notes">Review Notes (optional)</label>
+      <textarea class="form-control" id="review-notes" rows="3" placeholder="Add notes for the record…"></textarea>
+    </div>
+    <div class="review-actions">
+      <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+      <button class="btn btn-danger" id="modal-reject">❌ Reject</button>
+      <button class="btn btn-primary" id="modal-approve">✅ Approve & Route</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script type="module">
+  import {
+    escapeHtml,
+    requireAuth, requireAdmin, getUser, fetchMe, logout,
+    fetchAllPredictions, fetchReviewQueue, submitReview, showToast
+  } from './assets/js/api.js';
+
+  requireAuth();
+  requireAdmin();
+
+  let allData = [];
+  let currentFilter = 'all';
+  let selectedId = null;
+
+  // ---- Init ----
+  async function init() {
+    let user = getUser();
+    if (!user) { try { user = await fetchMe(); } catch {} }
+    if (user) document.getElementById('nav-user').textContent = `👤 ${user.username}`;
+    loadData();
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', () => logout());
+  document.getElementById('refresh-btn').addEventListener('click', loadData);
+
+  // ---- Filter buttons ----
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      renderTable();
+    });
+  });
+
+  // ---- Load data ----
+  async function loadData() {
+    document.getElementById('table-loading').classList.remove('hidden');
+    document.getElementById('table-wrap').classList.add('hidden');
+    document.getElementById('table-empty').classList.add('hidden');
+
+    try {
+      allData = await fetchAllPredictions();
+      updateStats();
+      renderTable();
+    } catch (err) {
+      showToast('Failed to load predictions: ' + err.message, 'error');
+      document.getElementById('table-loading').classList.add('hidden');
+    }
+  }
+
+  function updateStats() {
+    document.getElementById('stat-total').textContent    = allData.length;
+    document.getElementById('stat-review').textContent   = allData.filter(r => r.needs_human_review).length;
+    document.getElementById('stat-approved').textContent = allData.filter(r => r.review_status === 'approved').length;
+    document.getElementById('stat-pending').textContent  = allData.filter(r => r.review_status === 'pending' && r.needs_human_review).length;
+  }
+
+  function renderTable() {
+    document.getElementById('table-loading').classList.add('hidden');
+
+    let rows = allData;
+    if (currentFilter === 'needs_review') rows = rows.filter(r => r.needs_human_review);
+    else if (currentFilter !== 'all') rows = rows.filter(r => r.review_status === currentFilter);
+
+    if (rows.length === 0) {
+      document.getElementById('table-empty').classList.remove('hidden');
+      document.getElementById('table-wrap').classList.add('hidden');
+      return;
+    }
+
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = rows.map(r => {
+      const confPct = (r.confidence * 100).toFixed(1);
+      const confColor = r.confidence >= 0.8 ? 'var(--success)' : r.confidence >= 0.6 ? 'var(--warning)' : 'var(--danger)';
+      const statusBadge = {
+        approved: '<span class="badge badge-success">Approved</span>',
+        rejected: '<span class="badge badge-danger">Rejected</span>',
+        pending:  r.needs_human_review
+          ? '<span class="badge badge-warning">⚠️ Needs Review</span>'
+          : '<span class="badge badge-neutral">Pending</span>',
+      }[r.review_status] || '';
+
+      const date = new Date(r.created_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short' });
+
+      const canReview = r.review_status === 'pending';
+
+      return `<tr>
+        <td><strong>#${escapeHtml(r.id)}</strong></td>
+        <td><span class="truncate-sm" title="${escapeHtml(r.grievance_text)}">${escapeHtml(r.grievance_text)}</span></td>
+        <td><span class="badge badge-primary">${escapeHtml(r.predicted_category.replace(/_/g,' '))}</span></td>
+        <td><span style="font-weight:700;color:${confColor}">${confPct}%</span></td>
+        <td>${escapeHtml(r.submitted_by) || '<em>anonymous</em>'}</td>
+        <td>${statusBadge}</td>
+        <td>${date}</td>
+        <td>
+          ${canReview
+            ? `<button class="btn btn-primary btn-sm review-open-btn" data-id="${escapeHtml(r.id)}" data-text="${encodeURIComponent(r.grievance_text)}" data-cat="${escapeHtml(r.predicted_category)}" data-conf="${confPct}">Review</button>`
+            : '<span style="color:var(--text-light);font-size:.8rem;">Done</span>'
+          }
+        </td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('table-wrap').classList.remove('hidden');
+
+    // Attach review open handlers
+    document.querySelectorAll('.review-open-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openModal(btn.dataset.id, decodeURIComponent(btn.dataset.text), btn.dataset.cat, btn.dataset.conf);
+      });
+    });
+  }
+
+  // ---- Review modal ----
+  function openModal(id, text, cat, conf) {
+    selectedId = id;
+    document.getElementById('modal-id').textContent         = id;
+    document.getElementById('modal-text').textContent       = text;
+    document.getElementById('modal-category').textContent   = cat.replace(/_/g,' ');
+    document.getElementById('modal-confidence').textContent = conf + '%';
+    document.getElementById('review-notes').value           = '';
+    document.getElementById('review-modal').classList.remove('hidden');
+  }
+
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('review-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  function closeModal() {
+    document.getElementById('review-modal').classList.add('hidden');
+    selectedId = null;
+  }
+
+  async function doReview(status) {
+    if (!selectedId) return;
+    const notes = document.getElementById('review-notes').value.trim();
+    const btn = status === 'approved' ? document.getElementById('modal-approve') : document.getElementById('modal-reject');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      await submitReview(selectedId, status, notes);
+      showToast(`Prediction #${selectedId} ${status}.`, 'success');
+      closeModal();
+      loadData();
+    } catch (err) {
+      showToast('Review failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = status === 'approved' ? '✅ Approve & Route' : '❌ Reject';
+    }
+  }
+
+  document.getElementById('modal-approve').addEventListener('click', () => doReview('approved'));
+  document.getElementById('modal-reject').addEventListener('click',  () => doReview('rejected'));
+
+  init();
+</script>
+</body>
+</html>

@@ -116,6 +116,9 @@ def main():
         with transaction() as cursor:
             if not deliver(cursor, os.getenv("CASE_SMS_WEBHOOK"), os.getenv("CASE_SMS_TOKEN")):
                 break
+    with transaction() as cursor:
+        cursor.execute("""INSERT INTO case_worker_health (worker,completed_at) VALUES ('case_worker',UTC_TIMESTAMP())
+                          ON DUPLICATE KEY UPDATE completed_at=UTC_TIMESTAMP()""")
 
 
 if __name__ == "__main__":

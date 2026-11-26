@@ -16,7 +16,7 @@ mysql-connector-python==26.7.0
 python-dotenv==1.2.4
 
 # Authentication (JWT)
-python-jose[cryptography]==3.4.0
+PyJWT==2.15.1
 bcrypt>=4.2.1
 
 # Configuration
@@ -32,4 +32,7 @@ aiofiles==24.1.0
 email-validator==2.2.0
 
 # OAuth2 form data (required by FastAPI for Swagger login)
-python-multipart==0.0.20
+python-multipart==0.0.34
+
+# Complaint photo validation and metadata removal
+Pillow==13.0.0

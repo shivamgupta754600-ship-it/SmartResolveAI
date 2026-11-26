@@ -1,3 +1,4 @@
+from base64 import b64encode
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
@@ -7,7 +8,8 @@ import os
 from fastapi import HTTPException
 from mysql.connector import IntegrityError
 
-from app.repositories import municipal
+from app.repositories import municipal, residents
+from app.services.evidence import prepare_photo
 from app.database import get_database_connection
 
 
@@ -53,7 +55,8 @@ def sms_enabled():
     return bool(os.getenv("CASE_SMS_WEBHOOK", "").startswith("https://") and os.getenv("CASE_SMS_TOKEN"))
 
 
-def submit(body, *, staff_id=None, channel="web"):
+def submit(body, *, resident_id=None, staff_id=None, channel="web"):
+    photo = prepare_photo(body.photo) if body.photo is not None else None
     digest = sha256(body.receipt.encode()).digest()
     ticket = "SR-" + token_hex(11).upper()[:21]
     with transaction() as cursor:
@@ -63,6 +66,13 @@ def submit(body, *, staff_id=None, channel="web"):
         existing = cursor.fetchone()
         if existing:
             return existing
+        if staff_id:
+            resident_id = residents.redeem_code(cursor, body.assistance_code)
+        contact = residents.require_profile(cursor, resident_id)
+        if body.sms_phone and not contact["phone_verified"]:
+            raise HTTPException(422, "sms_requires_verified_phone")
+        if body.sms_phone and body.sms_phone != "+91" + contact["phone"][-10:]:
+            raise HTTPException(422, "use_profile_phone")
         if body.sms_phone and not sms_enabled():
             raise HTTPException(422, "sms_unavailable")
         cursor.execute("SELECT code FROM service_wards WHERE code=%s", (body.ward,))
@@ -89,6 +99,9 @@ def submit(body, *, staff_id=None, channel="web"):
                 raise
             return existing
         case_id = cursor.lastrowid
+        cursor.execute("INSERT INTO case_residents(case_id,user_id) VALUES (%s,%s)", (case_id,resident_id))
+        if photo is not None:
+            cursor.execute("INSERT INTO case_photos (case_id, jpeg) VALUES (%s,%s)", (case_id, photo))
         municipal.attach(cursor, case_id, body.ward, body.department, body.location)
         event(cursor, case_id, "received", actor=staff_id, public=True, sms=bool(body.sms_phone))
         return {"ticket": ticket}
@@ -111,20 +124,53 @@ def require_role(cursor, user_id, ward, department, roles):
         raise HTTPException(403, "outside_scope")
 
 
-def resident_case(cursor, access):
-    cursor.execute(
-        "SELECT * FROM service_cases WHERE ticket=%s AND receipt_hash=%s FOR UPDATE",
-        (access.ticket, sha256(access.receipt.encode()).digest()),
-    )
+def resident_case(cursor, access, owner_id=None):
+    if owner_id is not None:
+        cursor.execute(
+            """SELECT c.* FROM service_cases c JOIN case_residents r ON r.case_id=c.id
+               WHERE c.ticket=%s AND r.user_id=%s FOR UPDATE""", (access.ticket, owner_id),
+        )
+    else:
+        cursor.execute(
+            "SELECT * FROM service_cases WHERE ticket=%s AND receipt_hash=%s FOR UPDATE",
+            (access.ticket, sha256(access.receipt.encode()).digest()),
+        )
     row = cursor.fetchone()
     if row is None:
         raise HTTPException(404, "case_not_found")
     return row
 
 
-def resident_view(access):
+def has_photo(cursor, case_id):
+    cursor.execute("SELECT 1 FROM case_photos WHERE case_id=%s", (case_id,))
+    return cursor.fetchone() is not None
+
+
+def read_photo(cursor, case_id):
+    cursor.execute("SELECT jpeg FROM case_photos WHERE case_id=%s", (case_id,))
+    record = cursor.fetchone()
+    if record is None:
+        raise HTTPException(404, "photo_not_found")
+    return {"jpeg": b64encode(record["jpeg"]).decode("ascii")}
+
+
+def resident_photo(access, owner_id=None):
     with transaction() as cursor:
-        row = resident_case(cursor, access)
+        row = resident_case(cursor, access, owner_id)
+        event(cursor, row["id"], "resident_view")
+        return read_photo(cursor, row["id"])
+
+
+def staff_photo(user_id, ticket):
+    with transaction() as cursor:
+        row = staff_case(cursor, user_id, ticket)
+        event(cursor, row["id"], "staff_view", actor=user_id)
+        return read_photo(cursor, row["id"])
+
+
+def resident_view(access, owner_id=None):
+    with transaction() as cursor:
+        row = resident_case(cursor, access, owner_id)
         event(cursor, row["id"], "resident_view")
         cursor.execute(
             "SELECT id, kind, note, created_at FROM case_events WHERE case_id=%s AND public=TRUE ORDER BY id",
@@ -132,13 +178,14 @@ def resident_view(access):
         )
         result = {key: row[key] for key in ("ticket", "ward", "department", "status", "next_update_at", "created_at")}
         events = cursor.fetchall()
+        result["has_photo"] = has_photo(cursor, row["id"])
         cursor.execute("SELECT name FROM service_departments WHERE code=%s", (row["department"],))
         return {**result, "office": cursor.fetchone()["name"], "events": events, **municipal.details(cursor, row)}
 
 
-def resident_action(body):
+def resident_action(body, owner_id=None):
     with transaction() as cursor:
-        row = resident_case(cursor, body)
+        row = resident_case(cursor, body, owner_id)
         permitted = {"reply": "needs_information", "reopen": "resolved"}
         if row["status"] != permitted[body.action]:
             raise HTTPException(409, "invalid_transition")
@@ -234,7 +281,11 @@ def staff_view(user_id, ticket):
             (row["ward"], row["department"]),
         )
         officers = cursor.fetchall()
+        cursor.execute("""SELECT u.full_name,u.phone FROM case_residents r JOIN users u ON u.id=r.user_id
+                          WHERE r.case_id=%s""", (row["id"],))
+        row["resident_contact"] = cursor.fetchone()
         row.update(municipal.details(cursor, row))
+        row["has_photo"] = has_photo(cursor, row["id"])
         row.update(incident_context(cursor, row))
         for private in ("receipt_hash", "contact_phone"):
             row.pop(private)
@@ -340,7 +391,7 @@ def metrics(user_id):
             """SELECT c.ward, c.department, c.language, COUNT(*) AS total,
                       COUNT(CASE WHEN c.officer_id IS NOT NULL AND c.suggestion_state='ready' THEN 1 END) AS assessed,
                       COUNT(CASE WHEN c.officer_id IS NOT NULL AND c.suggestion_state='ready'
-                                 AND c.suggested_category=d.name THEN 1 END) AS matching,
+                                 AND REPLACE(LOWER(c.suggested_category),'_',' ')=LOWER(d.name) THEN 1 END) AS matching,
 
                       AVG((SELECT TIMESTAMPDIFF(SECOND,c.created_at,MIN(e.created_at))
                            FROM case_events e WHERE e.case_id=c.id AND e.actor_id IS NOT NULL AND e.public=1
@@ -359,3 +410,28 @@ def metrics(user_id):
             (user_id,),
         )
         return cursor.fetchall()
+
+
+def operations(user_id):
+    with transaction() as cursor:
+        cursor.execute("""SELECT ward,department FROM case_staff WHERE user_id=%s AND role='supervisor'""",
+                       (user_id,))
+        if not cursor.fetchall():
+            raise HTTPException(403, "outside_scope")
+        cursor.execute("""SELECT MAX(completed_at) AS completed_at,
+                          TIMESTAMPDIFF(MINUTE,MAX(completed_at),UTC_TIMESTAMP()) AS minutes_ago
+                          FROM case_worker_health WHERE worker='case_worker'""")
+        heartbeat = cursor.fetchone()
+        cursor.execute("""SELECT COUNT(*) AS waiting, COUNT(CASE WHEN m.attempts>=8 THEN 1 END) AS exhausted,
+                          TIMESTAMPDIFF(MINUTE,MIN(e.created_at),UTC_TIMESTAMP()) AS oldest_minutes
+                          FROM case_sms m JOIN case_events e ON e.id=m.event_id JOIN service_cases c ON c.id=e.case_id
+                          JOIN case_staff s ON s.ward=c.ward AND s.department=c.department
+                          WHERE s.user_id=%s AND s.role='supervisor' AND m.sent_at IS NULL""", (user_id,))
+        delivery = cursor.fetchone()
+        cursor.execute("""SELECT s.ward,s.department,
+                          COUNT(DISTINCT CASE WHEN u.is_active AND team.role IN ('supervisor','officer')
+                                              THEN u.id END) AS handlers
+                          FROM case_staff s JOIN case_staff team ON team.ward=s.ward AND team.department=s.department
+                          JOIN users u ON u.id=team.user_id WHERE s.user_id=%s AND s.role='supervisor'
+                          GROUP BY s.ward,s.department ORDER BY s.ward,s.department""", (user_id,))
+        return {"heartbeat": heartbeat, "delivery": delivery, "coverage": cursor.fetchall()}

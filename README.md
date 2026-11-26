@@ -24,7 +24,7 @@ backend security (JWT, rate limiting, input guardrails), ML pipeline (TF-IDF + c
 |---|---|
 | Frontend | React 18, Vite, Tailwind CSS 3, React Router v6, Lucide icons |
 | Backend | FastAPI, Python 3.10+ |
-| Auth | JWT (python-jose HS256), bcrypt (passlib) |
+| Auth | JWT (PyJWT HS256), bcrypt (passlib) |
 | Rate limiting | slowapi (20 req/min global, 10 on /predict) |
 | ML | scikit-learn — TF-IDF FeatureUnion + CalibratedLinearSVC |
 | Database | MySQL (raw connector, parameterized queries) |
@@ -130,7 +130,7 @@ Accuracy is measured on a held-out split of the current dataset. It does not gua
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 18+
+- Node.js 22.12+
 - MySQL 8.0+
 
 ### 1. Clone
@@ -144,6 +144,7 @@ cd SmartResolveAI
 
 ```bash
 mysql -u root -p < db/setup.sql
+mysql -u root -p smartresolve_db < db/cases.sql
 ```
 
 This creates the `smartresolve_db` database plus the `users` and `prediction_history` tables idempotently — safe to re-run.
@@ -228,7 +229,7 @@ All grievance routes require a valid Bearer token. Admin routes additionally req
 
 - Passwords are never stored or logged in plaintext
 - Login errors return a generic message regardless of which field is wrong (prevents user enumeration)
-- The `SECRET_KEY` must be set via environment variable — the application will not start with the default placeholder in production
+- The `SECRET_KEY` must be set via environment variable — the application will not start with a missing, short, or placeholder signing key
 - `.env` is in `.gitignore`; only `.env.example` (no real values) is committed
 - All database queries use parameterized statements — no raw string interpolation
 
@@ -297,7 +298,7 @@ SmartResolveAI/
 ## Municipal case pilot
 
 The React home page opens the municipal case portal. Residents can report an issue
-without an account and track it using a ticket number and a private receipt.
+after signing in and completing their resident profile. Tracking uses a ticket number and private receipt.
 The previous classifier dashboard is available at `/login`. The municipal workspace
 at `/staff` uses a separate password and authenticator login, with roles per ward
 and department. The prototype admin flag does not grant access to municipal cases.
@@ -411,3 +412,97 @@ Staff can record external referrals and manual acknowledgements, revise a resolu
 estimate with a public reason, and review and publish a printable Action Taken Report.
 These records appear in resident receipt tracking. The weekly sheet is a printable
 live list, oldest first, for the signed-in supervisor's jurisdictions.
+
+### Complaint photo evidence
+
+Resident and assisted intake accept one optional still JPEG, PNG or WebP photo
+(up to 5 MiB and 24 megapixels). The API validates and decodes it, applies
+orientation, removes metadata and stores a JPEG display copy up to 1600 pixels on
+its longest edge. The case and photo are saved in the same transaction. Residents
+can view the copy using their private receipt, and authorized officers can open it
+from the case. Deleting a case also removes the photo.
+
+Install the updated Python requirements and reapply `db/cases.sql` on existing
+databases. Allow at least 7 MiB for case intake requests at the reverse proxy to
+accommodate JSON encoding.
+
+
+### Resident accounts and identity references
+
+Apply the updated `db/cases.sql` for the resident profile and case ownership tables.
+Existing citizen accounts can sign in at the municipal portal. Before a new filing,
+residents supply their name, Indian mobile number, document type and the last four
+characters of Aadhaar, voter ID, passport, driving licence or another government ID.
+This is self-declared information. Government identity
+verification is not integrated. Complaint staff see the resident's name and contact
+number on the scoped case detail. SMS updates remain opt-in.
+
+For assisted filing, a resident generates a single-use code from their profile.
+A successful desk or phone filing consumes it and links the ticket to their account.
+The code expires after 30 minutes. Earlier tickets continue to work with the original
+private receipt and are not automatically attributed to an account.
+
+### Mobile verification and CAPTCHA
+
+Apply `db/cases.sql` before enabling registrations. The default
+`PHONE_VERIFICATION_REQUIRED=false` allows registration and filing with a
+self-declared mobile number. The portal skips CAPTCHA and OTP, and the API disables
+the verification endpoints. Changing a verified number in this mode clears its
+verified status.
+
+To enable verification later, configure a Cloudflare Turnstile
+widget for the portal hostname. Put the public `VITE_TURNSTILE_SITE_KEY` in the
+frontend build environment (or `frontend-react/.env.local`). Set the server-only
+`TURNSTILE_SECRET_KEY` and comma-separated `TURNSTILE_HOSTNAMES` on FastAPI.
+The API checks the challenge token, hostname and action before sending an SMS.
+
+Configure `OTP_SMS_WEBHOOK` with an HTTPS endpoint for the agency's transactional
+SMS provider and `OTP_SMS_TOKEN` with its bearer credential. The gateway receives
+JSON containing `to` in +91 format and `message`, with an Idempotency-Key header.
+Keep codes, proofs, SMS payloads and provider credentials out of logs.
+A randomly generated application SECRET_KEY is required for production.
+
+After configuring both providers, set `PHONE_VERIFICATION_REQUIRED=true`,
+restart the API and deploy the frontend built with the site key. In this mode,
+registration requires an SMS code valid for five minutes. Each code allows five
+guesses. Resends require another CAPTCHA, have a 60-second cooldown and are limited
+to five per number per 24-hour window. Verification grants a single-use proof valid
+for ten minutes. Existing accounts retain login access and verify their contact
+number in the resident profile before filing. Changing the contact number requires
+a fresh code. This verifies control of a phone number and leaves ID references
+self-declared.
+
+
+### Session and request protections
+
+Apply `db/cases.sql` when upgrading to create the session registry. Resident and
+staff tokens are checked against an active database session. Signing out online
+revokes the session; offline sign-out clears the browser session locally. Earlier
+tokens without a session ID require a fresh sign-in. Each deployment must supply
+its own randomly generated `SECRET_KEY`, including local development.
+
+The API accepts up to 7 MiB for intake with photos and 128 KiB for other writes.
+Account, case and prediction API responses use no-store caching. Optional SMS
+updates require a verified contact number. Deferred verification still supports
+registration, complaint filing and private receipt tracking.
+
+### Pilot operations
+
+Apply `db/cases.sql` to the pilot database. A signed-in resident can open a linked ticket under **My complaints** to read its public timeline, view evidence, reply, reopen a resolved case or appeal an eligible decision. Older cases without an owner link remain accessible with their private receipt.
+
+In **Staff → Supervisor metrics**, select **Check worker, SMS and staffing**. The worker records completion after processing escalations, classification and the delivery queue. Investigate a missing or stale run, a growing oldest-message age, or exhausted retries. The staffing count includes active accounts assigned an officer or supervisor role. At onboarding, have each office verify its ward, departments, primary handler, backup and escalation contact. Rehearse one transfer and confirm the receiving officer can open the original ticket and see its history.
+
+For multiple API processes, install `requirements-redis.txt`, configure `RATE_LIMIT_STORAGE_URI` to the same private Redis database on every process, and restrict Redis access to the service. Use an authenticated TLS connection for remote Redis. Set trusted proxy addresses on the API server to match the actual reverse proxy so client-IP limits apply correctly.
+
+#### Assisted recovery
+
+The office must approve the identity check and record a help-desk reference. Use an individually attributed operations database login. A receipt, a self-declared ID suffix, or an unverified phone alone is insufficient to authorize a reset.
+
+* For an active resident, run `python -m app.services.account_recovery resident_password USERNAME REFERENCE` on a trusted terminal. Have the resident privately enter their new password twice. Verify login, help update their phone in the resident profile, and check that their linked complaints are present.
+* For a lost staff authenticator, disable the affected login during recovery. Replace its individual TOTP secret in the deployment secret store and reload all API processes. Use the approved staff identity check and a private channel to enrol the replacement authenticator. Before restoring service to the account, revoke its sessions with `python -m app.services.account_recovery revoke_sessions USERNAME REFERENCE`. Check a new MFA login and the officer's ward permissions. The revocation command also supports disabled accounts.
+
+#### Encrypted backups and pilot evaluation
+
+Run `bash ops/backup.sh /secure/mysql.cnf smartresolve_db /secure/office-public-cert.pem /backups/pilot.cms` using MySQL client tools and OpenSSL 3. Use a new output path for each run. Transfer the encrypted output to the agency's off-host backup destination and keep the matching RSA private key separately. On an isolated host with SMS disabled, decrypt using `openssl cms -decrypt -binary -inform DER -in pilot.cms -recip office-public-cert.pem -inkey office-private-key.pem` and pipe the output to a fresh MySQL database. Enable shell `pipefail`, verify both commands succeeded, compare row counts, and check a resident timeline and staff queue before accepting the restore. Invalidate restored sessions before serving users.
+
+For the routing pilot, have office staff label a later batch of de-identified complaints without seeing model suggestions. Keep this batch out of training and model selection. Run `python -m ml.evaluate_pilot /secure/pilot.csv` with UTF-8 columns `text,language,category`. Use `en`, `hi`, or `hinglish` and the department category labels from training. The JSON report includes input and model hashes and predicted counts per language and true category. The evaluator rejects exact normalized duplicates and overlap with the cleaned training corpus. Office staff must check time separation and near-duplicates when preparing the batch.

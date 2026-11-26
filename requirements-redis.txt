@@ -1,0 +1,2 @@
+-r requirements.txt
+limits[redis]==5.8.0

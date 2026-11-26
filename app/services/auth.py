@@ -5,6 +5,10 @@ Business logic for register, login, and token refresh.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
+from app.repositories import sessions
+from app.repositories.cases import transaction
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
@@ -26,8 +30,9 @@ def register_user(
     username: str,
     email: str,
     password: str,
-    full_name: str = "",
-    phone: str = None,
+    full_name: str,
+    phone: str,
+    phone_proof: str | None,
 ) -> dict:
     """
     Create a new citizen account.
@@ -40,7 +45,7 @@ def register_user(
         raise ValueError("An account with this email already exists.")
 
     hashed = hash_password(password)
-    user_id = create_user(username, email, hashed, full_name, phone)
+    user_id = create_user(username, email, hashed, full_name, phone, phone_proof)
 
     return {"id": user_id, "username": username, "email": email}
 
@@ -68,8 +73,15 @@ def login_user(username: str, password: str) -> dict:
     if not user.get("is_active", False):
         raise ValueError("Your account is deactivated. Contact support.")
 
-    access_token = create_access_token({"sub": username})
-    refresh_token = create_refresh_token({"sub": username})
+    with transaction() as cursor:
+        cursor.execute("SELECT hashed_password,is_active FROM users WHERE id=%s FOR UPDATE", (user["id"],))
+        current = cursor.fetchone()
+        if not current or not current["is_active"] or current["hashed_password"] != user["hashed_password"]:
+            raise ValueError("Invalid username or password.")
+        sid = sessions.start(cursor, user["id"], timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
+    claims = {"sub": user["username"], "sid": sid}
+    access_token = create_access_token(claims)
+    refresh_token = create_refresh_token(claims)
 
     return {
         "access_token": access_token,
@@ -94,10 +106,10 @@ def refresh_access_token(refresh_token: str) -> dict:
         raise ValueError("Malformed token payload.")
 
     user = get_user_by_username(username)
-    if not user:
-        raise ValueError("User not found.")
+    if not user or not sessions.active(user["id"], payload.get("sid")):
+        raise ValueError("Session expired. Sign in again.")
 
-    access_token = create_access_token({"sub": username})
+    access_token = create_access_token({"sub": user["username"], "sid": payload["sid"]})
 
     return {
         "access_token": access_token,

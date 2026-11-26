@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { revokeSession } from '../api/client'
 import { caseRequest } from '../api/cases'
 import { formatDate, IntakeForm, useCatalog } from './CasePortal'
 
+import PortalHeader from '../components/PortalHeader'
+import CasePhoto from '../components/CasePhoto'
 import { OfficeActions, CivicDesk } from './MunicipalTools'
 import { replyTemplate } from './staffTemplates'
 
@@ -38,7 +41,7 @@ const errors = {
   inactive_officer: 'Select an active officer.',
 }
 
-function CaseDetail({ selected, scope, catalog, onAction, onIncident, busy }) {
+function CaseDetail({ selected, token, scope, catalog, onAction, onIncident, busy }) {
   const supervisor = scope.some(item => item.ward === selected.ward && item.department === selected.department && item.role === 'supervisor')
   const ownsCase = !selected.officer_id || selected.assigned_to_me || supervisor
   const available = ownsCase ? Object.entries(actions).filter(([key, [, statuses]]) =>
@@ -65,6 +68,7 @@ function CaseDetail({ selected, scope, catalog, onAction, onIncident, busy }) {
     {fieldMode && <p>{selected.ticket}</p>}
     <p><strong>{statusLabels[selected.status]}</strong> · {selected.ward} · {selected.department}</p>
     <p>Reported by {selected.channel === 'web' ? 'web' : selected.channel === 'desk' ? 'help desk' : 'phone'} · {selected.language === 'hi' ? 'Hindi' : 'English'}</p>
+    {selected.resident_contact && <p><strong>Resident contact</strong> · {selected.resident_contact.full_name} · <a href={'tel:+91'+selected.resident_contact.phone?.slice(-10)}>{selected.resident_contact.phone}</a></p>}
     <p><strong>Location</strong> · <span dir="auto">{selected.location}</span></p>
     <p dir="auto">{selected.description}</p>
     {selected.status !== 'resolved' && <p>Next update due · {formatDate(selected.next_update_at)}</p>}
@@ -73,6 +77,7 @@ function CaseDetail({ selected, scope, catalog, onAction, onIncident, busy }) {
     {!fieldMode && <p>AI suggestion · {selected.suggested_category
       ? `${selected.suggested_category} (${Math.round(selected.suggestion_confidence * 100)}% confidence)`
       : selected.suggestion_state === 'pending' ? 'Pending' : 'Unavailable'}</p>}
+    {selected.has_photo && <CasePhoto ticket={selected.ticket} token={token}/>}
     {latestReply && <p><strong>Latest resident message</strong> · {latestReply.note}</p>}
     {available.some(([key]) => key === 'visit') && <div className="field-buttons">
       <button disabled={busy} onClick={() => chooseAction('visit')}>Record visit</button>
@@ -149,8 +154,10 @@ function CaseDetail({ selected, scope, catalog, onAction, onIncident, busy }) {
 export default function StaffCases() {
   const [token, setToken] = useState('')
   const [scope, setScope] = useState([])
+  const [workspace,setWorkspace] = useState('queue')
   const [queue, setQueue] = useState([])
   const [selected, setSelected] = useState(null)
+  const [operations,setOperations] = useState(null)
   const [metrics, setMetrics] = useState([])
   const detailPanel = useRef(null)
   useEffect(() => {
@@ -165,9 +172,11 @@ export default function StaffCases() {
   const catalogState = useCatalog()
 
   function logout() {
+    void revokeSession(token)
     setToken('')
     setScope([])
     setQueue([])
+    setOperations(null)
     setMetrics([])
     setSelected(null)
     setNotice('')
@@ -208,7 +217,9 @@ export default function StaffCases() {
     const body = Object.fromEntries(new FormData(event.currentTarget))
     run(async () => {
       const { access_token } = await caseRequest('/staff/session', { body })
-      setScope(await caseRequest('/staff/scope', { token: access_token }))
+      const permissions = await caseRequest('/staff/scope', { token: access_token })
+      setScope(permissions)
+      setWorkspace(permissions.some(s => s.role !== 'intake') ? 'queue' : 'intake')
       await loadQueue(access_token, 0, 'mine')
       await loadMetrics(access_token)
       setFilter('mine')
@@ -221,6 +232,7 @@ export default function StaffCases() {
       setNotice('')
       setSelected(null)
       setSelected(await caseRequest(`/staff/case/${ticket}`, { token }))
+      setWorkspace('queue')
     })
   }
 
@@ -250,22 +262,30 @@ export default function StaffCases() {
 
   const intake = scope.some(item => ['intake', 'supervisor'].includes(item.role))
   const handlesCases = scope.some(item => ['officer', 'supervisor'].includes(item.role))
-  return <main className="case-page">
-    <header className="case-header"><Link to="/">Resident portal</Link>
+  return <main className="case-page staff-page">
+    <PortalHeader><Link to="/">Resident portal</Link>
       {token && <button type="button" disabled={busy} onClick={logout}>Sign out</button>}
-    </header>
+    </PortalHeader>
     <h1>{token ? 'Municipal case workspace' : 'Staff sign-in'}</h1>
     {error && <p role="alert">{error}</p>}
     {(notice || busy) && <p role="status">{busy ? 'Please wait…' : notice}</p>}
-    {!token ? <section className="case-grid">
+    {!token ? <section className="staff-signin">
+      <div className="staff-login-art portal-art" aria-hidden="true"/>
       <form onSubmit={login}>
+        <p>Use your staff account and authenticator to open your assigned cases.</p>
         <label>Username<input name="username" maxLength={50} autoComplete="username" required /></label>
         <label>Password<input type="password" name="password" maxLength={72} autoComplete="current-password" required /></label>
         <label>Authenticator code<input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" required /></label>
         <button disabled={busy}>Sign in</button>
       </form>
-    </section> : <div className="case-grid">
-      {handlesCases && <section aria-labelledby="queue-heading">
+    </section> : <>
+      <nav className="desk-navigation" aria-label="Workspace views">
+        {[[handlesCases,'queue','Case queue'],[intake,'intake','Assisted intake'],[scope.some(s=>s.role==='supervisor'),'review','Ward supervision']].map(([available,id,label])=>
+          available && <button type="button" key={id} aria-pressed={workspace===id} onClick={()=>setWorkspace(id)}>{label}</button>
+        )}
+      </nav>
+      <div className="case-grid desk-panels" data-view={workspace}>
+      {handlesCases && <section hidden={workspace!=='queue'} aria-labelledby="queue-heading">
         <h2 id="queue-heading">My work today</h2>
         <form onSubmit={event => {
           event.preventDefault()
@@ -306,18 +326,29 @@ export default function StaffCases() {
         {!queue.length && <p>No cases match this filter.</p>}
         {more && <button type="button" disabled={busy} onClick={() => run(() => loadQueue(token, queue.length))}>Load more</button>}
       </section>}
-      {selected && <section ref={detailPanel} tabIndex={-1} aria-label="Selected case">
+      {selected && <section hidden={workspace!=='queue'} ref={detailPanel} tabIndex={-1} aria-label="Selected case">
         <button type="button" disabled={busy} onClick={() => open(selected.ticket)}>Reload case</button>
-        <CaseDetail key={selected.ticket + selected.status + selected.events.at(-1)?.id} selected={selected} scope={scope}
+        <CaseDetail token={token} key={selected.ticket + selected.status + selected.events.at(-1)?.id} selected={selected} scope={scope}
         catalog={catalogState.catalog} onAction={save} onIncident={incident} busy={busy} /></section>}
-      {intake && <section><h2>Assisted intake</h2>
+      {intake && <section hidden={workspace!=='intake'}><h2>Assisted intake</h2>
         <label>Resident language<select value={intakeLanguage} onChange={event => setIntakeLanguage(event.target.value)}>
           <option value="en">English</option><option value="hi" lang="hi">हिन्दी</option>
         </select></label>
         <div lang={intakeLanguage}><IntakeForm {...catalogState} token={token} scope={scope} lang={intakeLanguage} /></div>
       </section>}
-      {scope.some(item => item.role === 'supervisor') && <CivicDesk token={token} scope={scope} run={run} busy={busy} open={open}/>}
-      {scope.some(item => item.role === 'supervisor') && <section className="case-metrics"><h2>Supervisor metrics</h2>
+      {scope.some(item => item.role === 'supervisor') && <div hidden={workspace!=='review'}><CivicDesk token={token} scope={scope} run={run} busy={busy} open={open}/></div>}
+      {scope.some(item => item.role === 'supervisor') && <section hidden={workspace!=='review'} className="case-metrics"><h2>Supervisor metrics</h2>
+        <button disabled={busy} onClick={()=>run(async()=>setOperations(await caseRequest('/staff/operations',{token})))}>Check worker, SMS and staffing</button>
+        {operations && <div aria-live="polite">
+          <p>{operations.heartbeat.minutes_ago == null ? 'No completed worker run recorded.'
+            : 'Last completed worker run: ' + operations.heartbeat.minutes_ago + ' min ago.'}
+            {operations.heartbeat.minutes_ago >= 5 && ' Check the worker schedule.'}</p>
+          <p>{operations.delivery.waiting} unsent messages · {operations.delivery.exhausted} exhausted retries
+            {operations.delivery.oldest_minutes != null && ' · oldest waiting ' + operations.delivery.oldest_minutes + ' min'}</p>
+          {operations.coverage.map(row=><p key={row.ward+'/'+row.department}>
+            {row.ward} · {row.department} · {row.handlers} active case handlers{row.handlers < 2 && ' · arrange backup coverage'}
+          </p>)}
+        </div>}
         {!metrics.length && <p>No cases to report.</p>}
         {metrics.map(row => <article key={row.ward + '/' + row.department + '/' + row.language}>
           <h3>{row.ward} · {row.department} · {row.language === 'hi' ? 'Hindi' : 'English'}</h3>
@@ -329,6 +360,6 @@ export default function StaffCases() {
           <p>AI agreed with confirmed routing on {row.matching} of {row.assessed} assessed cases</p>
         </article>)}
       </section>}
-    </div>}
+    </div></>}
   </main>
 }

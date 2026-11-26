@@ -24,14 +24,17 @@ def handle_register(request: UserRegisterRequest) -> dict:
             password=request.password,
             full_name=request.full_name,
             phone=request.phone,
+            phone_proof=request.phone_proof,
         )
+    except HTTPException:
+        raise
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
         )
     except Exception as error:
-        print("Registration error:", error)
+        print("Registration error:", type(error).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed. Please try again.",
@@ -51,7 +54,7 @@ def handle_login(request: UserLoginRequest) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
     except Exception as error:
-        print("Login error:", error)
+        print("Login error:", type(error).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed. Please try again.",
@@ -83,7 +86,7 @@ def handle_update_profile(user_id: int, request: UserUpdateProfileRequest) -> di
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
     except Exception as error:
-        print("Profile update error:", error)
+        print("Profile update error:", type(error).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Profile update failed.",

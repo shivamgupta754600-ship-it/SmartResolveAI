@@ -7,6 +7,11 @@ from __future__ import annotations
 
 from typing import Optional
 
+from fastapi import HTTPException
+
+from app.core.config import settings
+from app.services import phone_verification
+from app.repositories.cases import transaction
 from app.database import get_database_connection
 
 
@@ -14,33 +19,24 @@ def create_user(
     username: str,
     email: str,
     hashed_password: str,
-    full_name: str = "",
-    phone: Optional[str] = None,
+    full_name: str,
+    phone: str,
+    phone_proof: str | None,
 ) -> int:
-    """Insert a new user and return the auto-generated id."""
-    connection = None
-    cursor = None
-    try:
-        connection = get_database_connection()
-        cursor = connection.cursor()
+    with transaction() as cursor:
+        if settings.PHONE_VERIFICATION_REQUIRED:
+            if not phone_proof:
+                raise HTTPException(422, "Verify your mobile number before registering.")
+            phone_verification.consume(cursor, phone, phone_proof)
         cursor.execute(
-            """
-            INSERT INTO users (username, email, hashed_password, full_name, phone)
-            VALUES (%s, %s, %s, %s, %s)
-            """,
-            (username, email, hashed_password, full_name, phone),
+            """INSERT INTO users (username,email,hashed_password,full_name,phone)
+               VALUES (%s,%s,%s,%s,%s)""",
+            (username,email,hashed_password,full_name,phone),
         )
-        connection.commit()
-        return cursor.lastrowid
-    except Exception:
-        if connection and connection.is_connected():
-            connection.rollback()
-        raise
-    finally:
-        if cursor:
-            cursor.close()
-        if connection and connection.is_connected():
-            connection.close()
+        user_id = cursor.lastrowid
+        if settings.PHONE_VERIFICATION_REQUIRED:
+            phone_verification.record(cursor,user_id,phone)
+        return user_id
 
 
 def get_user_by_username(username: str) -> Optional[dict]:

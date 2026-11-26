@@ -5,6 +5,7 @@ Business logic: input guardrails → ML prediction → DB save → response dict
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from pathlib import Path
@@ -31,10 +32,10 @@ MODEL_PATH = PROJECT_ROOT / "ml" / "smartresolve_tuned_model.joblib"
 
 try:
     model = joblib.load(MODEL_PATH)
-    print("SmartResolve model loaded successfully.")
-except Exception as error:
+    logging.getLogger(__name__).info("SmartResolve model loaded successfully.")
+except Exception:
     model = None
-    print("Error loading model:", error)
+    logging.getLogger(__name__).exception("Could not load routing model")
 
 
 # ======================================================================

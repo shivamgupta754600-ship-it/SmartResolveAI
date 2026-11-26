@@ -7,7 +7,7 @@ Import `settings` wherever you need a config value.
 from __future__ import annotations
 
 import json
-from typing import List
+from typing import List, Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
     CASE_PUBLIC_DEPLOYMENT: bool = False
+    PHONE_VERIFICATION_REQUIRED: bool = False
 
     # ------------------------------------------------------------------
     # MySQL
@@ -35,8 +36,8 @@ class Settings(BaseSettings):
     # Generate a key with:
     #   python -c "import secrets; print(secrets.token_hex(32))"
     # ------------------------------------------------------------------
-    SECRET_KEY: str = "CHANGE-THIS-IN-PRODUCTION"
-    ALGORITHM: str = "HS256"
+    SECRET_KEY: str
+    ALGORITHM: Literal["HS256", "HS384", "HS512"] = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Rate Limiting
     # ------------------------------------------------------------------
+    RATE_LIMIT_STORAGE_URI: str = "memory://"
     RATE_LIMIT: str = "20/minute"
 
     # ------------------------------------------------------------------
@@ -72,8 +74,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_deployment_key(self):
-        if self.CASE_PUBLIC_DEPLOYMENT and (len(self.SECRET_KEY) < 32 or self.SECRET_KEY.startswith("CHANGE-THIS")):
-            raise ValueError("Public deployment requires a randomly generated SECRET_KEY.")
+        if len(self.SECRET_KEY.strip()) < 32 or self.SECRET_KEY.upper().startswith("CHANGE-THIS"):
+            raise ValueError("Set SECRET_KEY to a randomly generated key of at least 32 characters.")
         return self
 
     model_config = {

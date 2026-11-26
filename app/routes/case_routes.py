@@ -3,7 +3,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.middleware.rate_limiter import limiter
-from app.repositories import cases, staff_work, municipal
+from app.repositories import cases, staff_work, municipal, residents
+from app.core.dependencies import get_current_user
+from app.schemas.cases import AccountAction, AccountAppeal, ResidentProfile, TicketReference
 from app.schemas.cases import Responsibility, Referral, Acknowledgement, Delay, Appeal, Decision, Report
 from app.schemas.cases import IncidentLink, IncidentUpdate, AssistedInput, CaseAccess, CaseInput, ResidentAction, StaffAction, StaffLogin
 from app.services.case_staff import current_case_staff, staff_login
@@ -19,9 +21,9 @@ def catalog():
 
 @router.post("", status_code=201)
 @limiter.limit("8/minute")
-def submit(request: Request, response: Response, body: CaseInput):
+def submit(request: Request, response: Response, body: CaseInput, user: dict = Depends(get_current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return cases.submit(body)
+    return cases.submit(body, resident_id=user["id"])
 
 
 @router.post("/lookup")
@@ -151,3 +153,72 @@ def reviewers(user_id: StaffId):
 def verification_history(response: Response, user_id: StaffId):
     response.headers["Cache-Control"] = "no-store"
     return municipal.verification_history(user_id)
+
+
+@router.post("/photo")
+@limiter.limit("30/minute")
+def resident_photo(request: Request, response: Response, body: CaseAccess):
+    response.headers["Cache-Control"] = "no-store"
+    return cases.resident_photo(body)
+
+
+@router.get("/staff/case/{ticket}/photo")
+def staff_photo(ticket: str, response: Response, user_id: StaffId):
+    response.headers["Cache-Control"] = "no-store"
+    return cases.staff_photo(user_id, ticket)
+
+@router.get("/resident/profile")
+def resident_profile(response: Response, user: dict = Depends(get_current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    with cases.transaction() as cursor:
+        return residents.profile(cursor, user["id"])
+
+
+@router.put("/resident/profile")
+def save_resident_profile(response: Response, body: ResidentProfile, user: dict = Depends(get_current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    with cases.transaction() as cursor:
+        return residents.save_profile(cursor, user["id"], body)
+
+
+@router.post("/resident/assistance")
+def assistance(response: Response, user: dict = Depends(get_current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    with cases.transaction() as cursor:
+        return residents.issue_code(cursor, user["id"])
+
+
+@router.get("/resident/history")
+def resident_history(response: Response, before: Annotated[int, Query(ge=0)] = 0, user: dict = Depends(get_current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    with cases.transaction() as cursor:
+        return residents.history(cursor, user["id"], before)
+
+
+@router.post("/resident/lookup")
+@limiter.limit("30/minute")
+def account_lookup(request: Request, body: TicketReference, user: dict = Depends(get_current_user)):
+    return cases.resident_view(body, owner_id=user["id"])
+
+
+@router.post("/resident/photo")
+@limiter.limit("30/minute")
+def account_photo(request: Request, body: TicketReference, user: dict = Depends(get_current_user)):
+    return cases.resident_photo(body, owner_id=user["id"])
+
+
+@router.post("/resident/respond")
+@limiter.limit("10/minute")
+def account_respond(request: Request, body: AccountAction, user: dict = Depends(get_current_user)):
+    return cases.resident_action(body, owner_id=user["id"])
+
+
+@router.post("/resident/appeal")
+@limiter.limit("10/minute")
+def account_appeal(request: Request, body: AccountAppeal, user: dict = Depends(get_current_user)):
+    return municipal.file_appeal(body, owner_id=user["id"])
+
+
+@router.get("/staff/operations")
+def operations(user_id: StaffId):
+    return cases.operations(user_id)

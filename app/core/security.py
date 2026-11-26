@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt as _bcrypt
-from jose import JWTError, jwt
+import jwt
 
 from app.core.config import settings
 
@@ -17,11 +17,14 @@ from app.core.config import settings
 # ------------------------------------------------------------------
 
 def hash_password(password: str) -> str:
+    if len(password.encode()) > 72:
+        raise ValueError("Password must fit within 72 UTF-8 bytes.")
     return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _bcrypt.checkpw(plain.encode(), hashed.encode())
+    encoded = plain.encode()
+    return len(encoded) <= 72 and _bcrypt.checkpw(encoded, hashed.encode())
 
 
 # ------------------------------------------------------------------
@@ -47,6 +50,6 @@ def create_refresh_token(data: dict) -> str:
 def decode_token(token: str) -> Optional[dict]:
     """Return the decoded payload or None if invalid / expired."""
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except JWTError:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"require": ["exp", "sub", "token_type"]})
+    except jwt.InvalidTokenError:
         return None

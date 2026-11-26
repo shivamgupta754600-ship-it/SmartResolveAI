@@ -309,7 +309,8 @@ function ProfileModal({ user, onClose, onSaved, showToast }) {
     e.preventDefault()
     setSaving(true)
     try {
-      await api.auth.updateProfile(form)
+      const { phone, ...addressFields } = form
+      await api.auth.updateProfile(addressFields)
       onSaved()
     } catch (err) {
       showToast(err.message || 'Update failed.', 'error')
@@ -346,10 +347,10 @@ function ProfileModal({ user, onClose, onSaved, showToast }) {
               </div>
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mobile Number *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mobile number · <a href="/" className="underline">Verify or change in resident profile</a></label>
               <div className="relative">
                 <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input className="input pl-9" type="tel" value={form.phone} onChange={set('phone')} placeholder="9876543210" />
+                <input className="input pl-9" type="tel" value={form.phone} readOnly />
               </div>
             </div>
             <div className="col-span-2">

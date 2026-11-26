@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException
 
 from app.core.dependencies import get_current_user, oauth2_scheme
 from app.core.security import create_access_token, decode_token, verify_password
+from app.repositories import sessions
 from app.repositories.cases import staff_scope, transaction
 from app.repositories.user import get_user_by_username
 
@@ -50,7 +51,8 @@ def staff_login(body):
         )
         if not cursor.rowcount:
             raise invalid
-    claims = {"sub": user["username"], "case_staff": True}
+        sid = sessions.start(cursor, user["id"], timedelta(minutes=30))
+    claims = {"sub": user["username"], "case_staff": True, "sid": sid}
     return {"access_token": create_access_token(claims, timedelta(minutes=30))}
 
 

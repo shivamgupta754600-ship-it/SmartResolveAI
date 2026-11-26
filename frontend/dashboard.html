@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartResolve AI — Dashboard</title>
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <style>
+    .hero-banner {
+      background: linear-gradient(135deg, #1e40af, #1d4ed8);
+      border-radius: var(--radius-lg); padding: 2rem;
+      color: white; margin-bottom: 2rem;
+    }
+    .hero-banner h2 { font-size: 1.4rem; font-weight: 800; }
+    .hero-banner p  { opacity: .85; margin-top: .3rem; }
+    .predict-card textarea { font-size: 1rem; }
+    .result-box { border: 2px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-top: 1.5rem; }
+    .result-box.success { border-color: var(--success); background: var(--success-bg); }
+    .result-box.review  { border-color: var(--warning); background: var(--warning-bg); }
+    .category-name { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin: .5rem 0; }
+    .prob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .5rem; margin-top: 1rem; }
+    .prob-item { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .75rem; }
+    .prob-item-label { font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: capitalize; }
+    .prob-item-bar { margin-top: .3rem; }
+    .history-wrap { margin-top: 2.5rem; }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: .75rem; }
+    .truncate { max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .admin-link { font-size: .8rem; }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================ TOP NAV -->
+<nav class="topnav">
+  <a href="dashboard.html" class="topnav-brand">
+    <span class="logo">🏛️</span>
+    <span>SmartResolve AI</span>
+  </a>
+  <div class="topnav-actions">
+    <span class="topnav-user" id="nav-user">👤 …</span>
+    <a href="admin.html" class="btn btn-ghost btn-sm admin-link hidden" id="admin-link">⚙️ Admin</a>
+    <button class="btn btn-ghost btn-sm" id="logout-btn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page-container">
+
+  <!-- HERO -->
+  <div class="hero-banner">
+    <h2>Welcome, <span id="hero-name">Citizen</span> 👋</h2>
+    <p>Submit your grievance below. Our AI will classify it and route it to the right department.</p>
+  </div>
+
+  <!-- ============================================================ PREDICT -->
+  <div class="card predict-card">
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;">📝 Submit a Grievance</h3>
+
+    <div id="predict-error" class="alert alert-error hidden mb-2"></div>
+
+    <form id="predict-form" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="grievance-text">
+          Describe your grievance <span>*</span>
+        </label>
+        <textarea
+          class="form-control"
+          id="grievance-text"
+          rows="5"
+          maxlength="1000"
+          placeholder="e.g. हमारे मोहल्ले में पानी नहीं आ रहा है / There is no street lighting near the main road…"
+        ></textarea>
+        <div class="form-hint flex" style="justify-content:space-between">
+          <span>Hindi, English, or Hinglish accepted.</span>
+          <span id="char-count">0 / 1000</span>
+        </div>
+        <div class="form-error" id="text-err"></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg" id="predict-btn">
+        🔍 Classify Grievance
+      </button>
+    </form>
+
+    <!-- RESULT -->
+    <div id="result-box" class="result-box hidden">
+      <div class="flex items-center gap-2" style="margin-bottom:.75rem;">
+        <span id="result-icon" style="font-size:1.5rem;"></span>
+        <strong id="result-status" style="font-size:1rem;"></strong>
+      </div>
+
+      <div class="category-name" id="result-category"></div>
+
+      <div class="flex items-center gap-3" style="flex-wrap:wrap;margin-bottom:1rem;">
+        <span>Confidence: <strong id="result-confidence"></strong></span>
+        <div class="confidence-bar-track" style="flex:1;min-width:120px;">
+          <div class="confidence-bar-fill" id="conf-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div id="result-review-msg" class="alert mb-2 hidden"></div>
+      <div id="result-safety" class="alert alert-info" style="font-size:.8rem;margin-top:.5rem;"></div>
+
+      <details style="margin-top:1rem;">
+        <summary style="cursor:pointer;font-weight:600;font-size:.85rem;color:var(--text-muted);">
+          View all category probabilities
+        </summary>
+        <div class="prob-grid" id="prob-grid"></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ============================================================ HISTORY -->
+  <div class="history-wrap">
+    <div class="flex items-center" style="justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="font-size:1.1rem;font-weight:700;">📋 My Recent Submissions</h3>
+      <button class="btn btn-ghost btn-sm" id="refresh-history-btn">↻ Refresh</button>
+    </div>
+
+    <div id="history-loading" class="text-center text-muted" style="padding:2rem;">
+      <div class="spinner" style="margin:0 auto 1rem;"></div>Loading history…
+    </div>
+    <div id="history-empty" class="empty-state hidden">
+      <div class="icon">📭</div>
+      <p>No submissions yet. Submit your first grievance above!</p>
+    </div>
+    <div id="history-table-wrap" class="table-wrap hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Grievance (truncated)</th>
+            <th>Category</th>
+            <th>Confidence</th>
+            <th>Review</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /page-container -->
+
+<div id="toast-container"></div>
+
+<script type="module">
+  import {
+    escapeHtml,
+    requireAuth, getUser, logout, predict, fetchHistory, fetchMe, showToast
+  } from './assets/js/api.js';
+
+  requireAuth();
+
+  // ---- Bootstrap ----
+  async function init() {
+    let user = getUser();
+    if (!user) { try { user = await fetchMe(); } catch {} }
+    if (user) {
+      document.getElementById('hero-name').textContent = user.full_name || user.username;
+      document.getElementById('nav-user').textContent  = `👤 ${user.username}`;
+      if (user.is_admin) {
+        document.getElementById('admin-link').classList.remove('hidden');
+      }
+    }
+    loadHistory();
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', () => logout());
+  document.getElementById('refresh-history-btn').addEventListener('click', loadHistory);
+
+  // ---- Char counter ----
+  const textarea = document.getElementById('grievance-text');
+  textarea.addEventListener('input', () => {
+    document.getElementById('char-count').textContent = `${textarea.value.length} / 1000`;
+  });
+
+  // ---- Predict ----
+  document.getElementById('predict-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl = document.getElementById('text-err');
+    const alertEl = document.getElementById('predict-error');
+    errEl.textContent = ''; errEl.classList.remove('visible');
+    alertEl.classList.add('hidden');
+    document.getElementById('result-box').classList.add('hidden');
+
+    const text = textarea.value.trim();
+    if (!text) { errEl.textContent = 'Please enter your grievance.'; errEl.classList.add('visible'); return; }
+    if (text.length < 5) { errEl.textContent = 'At least 5 characters required.'; errEl.classList.add('visible'); return; }
+
+    const btn = document.getElementById('predict-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;"></div> Classifying…';
+
+    try {
+      const result = await predict(text);
+      renderResult(result);
+      loadHistory();
+    } catch (err) {
+      alertEl.textContent = err.message;
+      alertEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Classify Grievance';
+    }
+  });
+
+  function renderResult(r) {
+    const box = document.getElementById('result-box');
+    box.className = 'result-box ' + (r.needs_human_review ? 'review' : 'success');
+
+    document.getElementById('result-icon').textContent     = r.needs_human_review ? '⚠️' : '✅';
+    document.getElementById('result-status').textContent   = r.needs_human_review ? 'Needs Human Review' : 'Classified Successfully';
+    document.getElementById('result-category').textContent = r.predicted_category.replace(/_/g, ' ').toUpperCase();
+    document.getElementById('result-confidence').textContent = `${(r.confidence * 100).toFixed(1)}%`;
+
+    const bar = document.getElementById('conf-bar');
+    bar.style.width = `${r.confidence * 100}%`;
+    bar.style.background = r.confidence >= 0.8 ? 'var(--success)' : r.confidence >= 0.6 ? 'var(--warning)' : 'var(--danger)';
+
+    const reviewMsg = document.getElementById('result-review-msg');
+    reviewMsg.textContent = r.review_message;
+    reviewMsg.className = 'alert mb-2 ' + (r.needs_human_review ? 'alert-warning' : 'alert-success');
+    reviewMsg.classList.remove('hidden');
+
+    document.getElementById('result-safety').textContent = r.safety_note;
+
+    // Probability grid
+    const grid = document.getElementById('prob-grid');
+    grid.innerHTML = '';
+    Object.entries(r.probabilities).sort((a,b) => b[1]-a[1]).forEach(([cat, prob]) => {
+      const pct = (prob * 100).toFixed(1);
+      grid.innerHTML += `
+        <div class="prob-item">
+          <div class="prob-item-label">${escapeHtml(cat.replace(/_/g,' '))}</div>
+          <div class="confidence-bar-wrap prob-item-bar">
+            <div class="confidence-bar-track" style="height:6px;">
+              <div class="confidence-bar-fill" style="width:${pct}%;background:var(--primary-light);"></div>
+            </div>
+          </div>
+          <div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-top:.2rem;">${pct}%</div>
+        </div>`;
+    });
+
+    box.classList.remove('hidden');
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ---- History ----
+  async function loadHistory() {
+    document.getElementById('history-loading').classList.remove('hidden');
+    document.getElementById('history-empty').classList.add('hidden');
+    document.getElementById('history-table-wrap').classList.add('hidden');
+
+    try {
+      const rows = await fetchHistory();
+      document.getElementById('history-loading').classList.add('hidden');
+
+      if (!rows || rows.length === 0) {
+        document.getElementById('history-empty').classList.remove('hidden');
+        return;
+      }
+
+      const tbody = document.getElementById('history-body');
+      tbody.innerHTML = rows.map(r => {
+        const statusBadge = {
+          approved: '<span class="badge badge-success">Approved</span>',
+          rejected: '<span class="badge badge-danger">Rejected</span>',
+          pending:  r.needs_human_review ? '<span class="badge badge-warning">Needs Review</span>' : '<span class="badge badge-success">OK</span>',
+        }[r.review_status] || '';
+
+        const confPct = (r.confidence * 100).toFixed(1);
+        const date = new Date(r.created_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+
+        return `<tr>
+          <td>${escapeHtml(r.id)}</td>
+          <td><span class="truncate" title="${escapeHtml(r.grievance_text)}">${escapeHtml(r.grievance_text)}</span></td>
+          <td><span class="badge badge-primary">${escapeHtml(r.predicted_category.replace(/_/g,' '))}</span></td>
+          <td>${confPct}%</td>
+          <td>${statusBadge}</td>
+          <td>${date}</td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('history-table-wrap').classList.remove('hidden');
+    } catch (err) {
+      document.getElementById('history-loading').classList.add('hidden');
+      showToast('Could not load history: ' + err.message, 'error');
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

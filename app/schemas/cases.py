@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 Code = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_-]{1,32}$")]
 Receipt = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
@@ -13,6 +13,7 @@ class CaseInput(BaseModel):
     receipt: Receipt
     ward: Code
     department: Code
+    photo: str | None = Field(default=None, min_length=1, max_length=6990508, repr=False)
     description: Note
     location: Annotated[str, StringConstraints(min_length=2, max_length=300)]
     language: Literal["en", "hi"] = "en"
@@ -20,17 +21,25 @@ class CaseInput(BaseModel):
 
 
 class AssistedInput(CaseInput):
+    assistance_code: Annotated[str, StringConstraints(pattern=r"^[a-fA-F0-9]{16}$")]
     channel: Literal["phone", "desk"]
 
 
-class CaseAccess(BaseModel):
+class TicketReference(BaseModel):
     ticket: Annotated[str, StringConstraints(pattern=r"^SR-[A-F0-9]{21}$")]
+
+
+class CaseAccess(TicketReference):
     receipt: Receipt
 
 
-class ResidentAction(CaseAccess):
+class AccountAction(TicketReference):
     action: Literal["reply", "reopen"]
     note: Note
+
+
+class ResidentAction(AccountAction, CaseAccess):
+    pass
 
 
 class CaseEdit(BaseModel):
@@ -95,8 +104,12 @@ class Delay(CaseEdit):
     update_due: AwareDatetime
 
 
-class Appeal(CaseAccess):
+class AccountAppeal(TicketReference):
     reason: Note
+
+
+class Appeal(AccountAppeal, CaseAccess):
+    pass
 
 
 class Decision(BaseModel):
@@ -106,3 +119,16 @@ class Decision(BaseModel):
 class Report(CaseEdit):
     designation: ShortText
     report: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=12000)]
+
+class ResidentProfile(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    full_name: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+    phone: Annotated[str, StringConstraints(pattern=r"^(?:[+]91|91)?[6-9][0-9]{9}$")]
+    document_type: Literal["aadhaar", "voter", "passport", "driving_licence", "other"]
+    document_suffix: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9]{4}$")]
+
+    @model_validator(mode="after")
+    def validate_reference(self):
+        if self.document_type == "aadhaar" and not self.document_suffix.isdigit():
+            raise ValueError("Use the last four digits of Aadhaar.")
+        return self

@@ -135,3 +135,70 @@ CREATE TABLE IF NOT EXISTS action_reports (
  FOREIGN KEY (case_id) REFERENCES service_cases(id) ON DELETE CASCADE,
  FOREIGN KEY (reviewed_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS case_photos (
+    case_id BIGINT PRIMARY KEY,
+    jpeg MEDIUMBLOB NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES service_cases(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS resident_identity (
+    user_id INT PRIMARY KEY,
+    document_type ENUM('aadhaar','voter','passport','driving_licence','other') NOT NULL,
+    document_suffix CHAR(4) NOT NULL,
+    assistance_hash BINARY(32) UNIQUE,
+    assistance_expires DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS case_residents (
+    case_id BIGINT PRIMARY KEY,
+    user_id INT NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES service_cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX (user_id,case_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS phone_challenges (
+    phone CHAR(10) PRIMARY KEY,
+    challenge CHAR(32) NOT NULL UNIQUE,
+    subject_id INT NULL,
+    code_hash BINARY(32),
+    proof_hash BINARY(32) UNIQUE,
+    expires_at DATETIME NOT NULL,
+    attempts TINYINT UNSIGNED NOT NULL,
+    last_sent DATETIME NOT NULL,
+    window_start DATETIME NOT NULL,
+    sent_count TINYINT UNSIGNED NOT NULL,
+    INDEX (last_sent)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS verified_phones (
+    user_id INT PRIMARY KEY,
+    phone CHAR(10) NOT NULL,
+    verified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    id CHAR(32) PRIMARY KEY,
+    user_id INT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX (expires_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS case_worker_health (
+    worker VARCHAR(32) PRIMARY KEY,
+    completed_at DATETIME NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS account_recovery_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    reference_number VARCHAR(80) NOT NULL,
+    operation ENUM('resident_password','revoke_sessions') NOT NULL,
+    performed_by VARCHAR(288) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
